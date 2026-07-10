@@ -41,7 +41,6 @@
     <div id="view-onboard" class="view">
         <div class="onboard-container">
             <div class="onboard-slides" id="onboard-slides">
-                <!-- Slide 1 -->
                 <div class="onboard-slide active" data-slide="0">
                     <div class="slide-visual">
                         <div class="visual-circle visual-1">
@@ -57,7 +56,6 @@
                         <p>The ultimate click-competition platform. Challenge yourself and climb the global leaderboard with every tap.</p>
                     </div>
                 </div>
-                <!-- Slide 2 -->
                 <div class="onboard-slide" data-slide="1">
                     <div class="slide-visual">
                         <div class="visual-circle visual-2">
@@ -75,7 +73,6 @@
                         <p>Monitor your personal high scores in real-time. Every click counts toward your all-time best performance.</p>
                     </div>
                 </div>
-                <!-- Slide 3 -->
                 <div class="onboard-slide" data-slide="2">
                     <div class="slide-visual">
                         <div class="visual-circle visual-3">
@@ -90,7 +87,6 @@
                         <p>Compete with players worldwide. Only the fastest clickers claim the top spots. Will you be number one?</p>
                     </div>
                 </div>
-                <!-- Slide 4 -->
                 <div class="onboard-slide" data-slide="3">
                     <div class="slide-visual">
                         <div class="visual-circle visual-4">
@@ -113,8 +109,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Navigation Arrows -->
             <button class="nav-arrow nav-prev" id="nav-prev" aria-label="Previous slide">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M15 18l-6-6 6-6"/>
@@ -125,8 +119,6 @@
                     <path d="M9 18l6-6-6-6"/>
                 </svg>
             </button>
-
-            <!-- Dot Indicators -->
             <div class="onboard-dots" id="onboard-dots">
                 <button class="dot active" data-index="0" aria-label="Slide 1"></button>
                 <button class="dot" data-index="1" aria-label="Slide 2"></button>
@@ -151,15 +143,11 @@
                 </div>
                 <h1 class="auth-title">ClickFun.io</h1>
             </div>
-
-            <!-- Auth Toggle -->
             <div class="auth-tabs">
                 <button class="auth-tab active" data-tab="login">Sign In</button>
                 <button class="auth-tab" data-tab="register">Create Account</button>
                 <div class="auth-tab-indicator"></div>
             </div>
-
-            <!-- Login Form -->
             <form class="auth-form active" id="form-login" novalidate>
                 <div class="form-group">
                     <label for="login-username">Username</label>
@@ -202,8 +190,6 @@
                     </span>
                 </button>
             </form>
-
-            <!-- Registration Form -->
             <form class="auth-form" id="form-register" novalidate>
                 <div class="form-group">
                     <label for="reg-username">Username</label>
@@ -439,7 +425,6 @@
                             <option value="CR">Costa Rica</option>
                             <option value="PA">Panama</option>
                             <option value="GL">Greenland</option>
-                            <option value="IS">Iceland</option>
                             <option value="FJ">Fiji</option>
                             <option value="PG">Papua New Guinea</option>
                             <option value="SB">Solomon Islands</option>
@@ -493,7 +478,6 @@
     <!-- VIEW 4: CORE GAMEPLAY DASHBOARD           -->
     <!-- ========================================= -->
     <div id="view-dashboard" class="view">
-        <!-- Dashboard Header -->
         <header class="dash-header">
             <div class="dash-header-left">
                 <div class="user-avatar" id="dash-avatar">?</div>
@@ -513,10 +497,34 @@
             </div>
         </header>
 
-        <!-- Dashboard Content -->
+        <!-- News Ticker -->
+        <div class="news-ticker-container hidden" id="news-ticker-container" aria-live="polite" aria-atomic="true">
+            <div class="news-ticker-track">
+                <span class="news-ticker-text" id="news-ticker-text">Welcome to ClickFun.io</span>
+            </div>
+        </div>
+
         <main class="dash-main">
-            <!-- PLAY MENU -->
             <section class="dash-section active" id="section-play">
+                <div class="mode-selector">
+                    <div class="mode-slides" id="mode-slides">
+                        <div class="mode-slide active" data-mode="60s">
+                            <div class="mode-badge">60s Mode</div>
+                            <h3>Speed Challenge</h3>
+                            <p>How many clicks in 60 seconds?</p>
+                        </div>
+                        <div class="mode-slide" data-mode="endless">
+                            <div class="mode-badge endless">Endless Mode</div>
+                            <h3>Marathon Run</h3>
+                            <p>Click forever. Beat your limits.</p>
+                        </div>
+                    </div>
+                    <div class="mode-dots" id="mode-dots">
+                        <button class="dot active" data-index="0" aria-label="60s Mode"></button>
+                        <button class="dot" data-index="1" aria-label="Endless Mode"></button>
+                    </div>
+                </div>
+
                 <div class="play-card">
                     <div class="play-card-icon">
                         <svg viewBox="0 0 64 64" fill="none">
@@ -526,8 +534,8 @@
                             <path d="M32 12v6M32 46v6M12 32h6M46 32h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
                         </svg>
                     </div>
-                    <h2>Click Challenge</h2>
-                    <p>Test your speed in a 60-second clicking marathon. How many clicks can you achieve?</p>
+                    <h2 id="play-card-title">Click Challenge</h2>
+                    <p id="play-card-desc">Test your speed in a 60-second clicking marathon. How many clicks can you achieve?</p>
                     <button class="btn-play" id="btn-start-game">
                         <span>Start Game</span>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -536,34 +544,60 @@
                     </button>
                 </div>
 
-                <div class="stats-preview">
-                    <div class="stat-card">
-                        <div class="stat-icon stat-icon-clicks">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-                            </svg>
+                <div class="stats-container" id="stats-container">
+                    <div class="stats-group active" id="stats-60s">
+                        <div class="stat-card">
+                            <div class="stat-icon stat-icon-clicks">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
+                                </svg>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="preview-highscore">0</span>
+                                <span class="stat-label">Personal Best</span>
+                            </div>
                         </div>
-                        <div class="stat-data">
-                            <span class="stat-value" id="preview-highscore">0</span>
-                            <span class="stat-label">Personal Best</span>
+                        <div class="stat-card">
+                            <div class="stat-icon stat-icon-rank">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                                    <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+                                </svg>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="preview-rank">--</span>
+                                <span class="stat-label">Global Rank</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon stat-icon-rank">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-                                <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
-                            </svg>
+                    <div class="stats-group" id="stats-endless">
+                        <div class="stat-card">
+                            <div class="stat-icon stat-icon-time">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="preview-endless-time">00:00:00</span>
+                                <span class="stat-label">Best Time</span>
+                            </div>
                         </div>
-                        <div class="stat-data">
-                            <span class="stat-value" id="preview-rank">--</span>
-                            <span class="stat-label">Global Rank</span>
+                        <div class="stat-card">
+                            <div class="stat-icon stat-icon-clicks">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
+                                </svg>
+                            </div>
+                            <div class="stat-data">
+                                <span class="stat-value" id="preview-endless-clicks">0</span>
+                                <span class="stat-label">Best Clicks</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- LEADERBOARD MENU -->
             <section class="dash-section" id="section-leaderboard">
                 <div class="lb-header">
                     <h2>Global Leaderboard</h2>
@@ -572,21 +606,39 @@
                         <span>Live</span>
                     </div>
                 </div>
-                <div class="lb-table-container">
-                    <div class="lb-table-header">
-                        <span class="lb-col-rank">Rank</span>
-                        <span class="lb-col-flag"></span>
-                        <span class="lb-col-user">Player</span>
-                        <span class="lb-col-score">Score</span>
+                <div class="lb-mode-tabs">
+                    <button class="lb-mode-tab active" data-lb-mode="60s">60s Mode</button>
+                    <button class="lb-mode-tab" data-lb-mode="endless">Endless Mode</button>
+                    <div class="lb-mode-indicator"></div>
+                </div>
+                <div class="lb-panels">
+                    <div class="lb-panel active" id="lb-panel-60s">
+                        <div class="lb-table-container">
+                            <div class="lb-table-header">
+                                <span class="lb-col-rank">Rank</span>
+                                <span class="lb-col-flag"></span>
+                                <span class="lb-col-user">Player</span>
+                                <span class="lb-col-score">Score</span>
+                            </div>
+                            <div class="lb-list" id="lb-list-60s"></div>
+                        </div>
                     </div>
-                    <div class="lb-list" id="lb-list">
-                        <!-- Populated dynamically -->
+                    <div class="lb-panel" id="lb-panel-endless">
+                        <div class="lb-table-container">
+                            <div class="lb-table-header">
+                                <span class="lb-col-rank">Rank</span>
+                                <span class="lb-col-flag"></span>
+                                <span class="lb-col-user">Player</span>
+                                <span class="lb-col-time">Time</span>
+                                <span class="lb-col-score">Clicks</span>
+                            </div>
+                            <div class="lb-list" id="lb-list-endless"></div>
+                        </div>
                     </div>
                 </div>
             </section>
         </main>
 
-        <!-- Bottom Navigation -->
         <nav class="dash-nav">
             <button class="nav-item active" data-nav="play">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -616,15 +668,30 @@
                 </div>
             </div>
             <div class="hud-center">
-                <div class="timer-ring">
+                <div class="timer-ring" id="timer-ring-container">
                     <svg viewBox="0 0 100 100">
                         <circle class="timer-bg" cx="50" cy="50" r="42"/>
                         <circle class="timer-progress" id="timer-progress" cx="50" cy="50" r="42"/>
                     </svg>
                     <span class="timer-text" id="game-timer">60</span>
                 </div>
+                <div class="stopwatch-display" id="stopwatch-display">
+                    <span class="stopwatch-text" id="game-stopwatch">00:00:00</span>
+                    <div class="stopwatch-pulse"></div>
+                </div>
             </div>
             <div class="hud-right">
+                <button type="button" class="skill-boost-container" id="btn-skill-boost" aria-label="Lightning Boost Skill">
+                    <svg class="skill-ring" viewBox="0 0 44 44">
+                        <circle class="skill-ring-bg" cx="22" cy="22" r="18"/>
+                        <circle class="skill-ring-progress" id="skill-ring-progress" cx="22" cy="22" r="18"/>
+                    </svg>
+                    <div class="skill-icon">
+                        <svg id="skill-icon-lightning" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                    </div>
+                </button>
                 <button class="hud-pause" id="btn-pause" aria-label="Pause game">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <rect x="6" y="4" width="4" height="16" rx="1"/>
@@ -634,10 +701,10 @@
             </div>
         </div>
         <div class="game-highscore">
-            <span>Personal Best: <strong id="game-highscore">0</strong></span>
+            <span id="game-highscore-label">Personal Best: <strong id="game-highscore">0</strong></span>
         </div>
         <div class="game-zone" id="game-zone">
-            <div class="game-zone-hint">Tap anywhere to click!</div>
+            <div class="game-zone-hint" id="game-zone-hint">Tap anywhere to click!</div>
             <div class="click-ripples" id="click-ripples"></div>
         </div>
     </div>
@@ -656,18 +723,18 @@
                         <path d="M20 34l8 8 16-16" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <h2 class="modal-title">Time\'s Up!</h2>
-                <p class="modal-subtitle">Great effort! Here are your results.</p>
+                <h2 class="modal-title" id="modal-title">Time's Up!</h2>
+                <p class="modal-subtitle" id="modal-subtitle">Great effort! Here are your results.</p>
             </div>
             <div class="modal-body">
                 <div class="result-stats">
                     <div class="result-stat">
-                        <span class="result-label">Your Score</span>
+                        <span class="result-label" id="result-label-primary">Your Score</span>
                         <span class="result-value" id="result-score">0</span>
                     </div>
                     <div class="result-divider"></div>
                     <div class="result-stat">
-                        <span class="result-label">Personal Best</span>
+                        <span class="result-label" id="result-label-secondary">Personal Best</span>
                         <span class="result-value" id="result-best">0</span>
                     </div>
                 </div>
@@ -698,7 +765,6 @@
         </div>
     </div>
 
-    <!-- Pause Modal -->
     <div id="modal-pause" class="ios-modal">
         <div class="modal-backdrop"></div>
         <div class="modal-sheet modal-sheet-sm">
@@ -719,7 +785,7 @@
                         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
                         <polyline points="9 22 9 12 15 12 15 22"/>
                     </svg>
-                    <span>Quit to Menu</span>
+                    <span id="btn-quit-text">Quit to Menu</span>
                 </button>
             </div>
         </div>
