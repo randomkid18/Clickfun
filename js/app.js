@@ -1,36 +1,18 @@
 /**
  * ============================================================
  * CLICKFUN.IO - FRONTEND APPLICATION ENGINE
- * iOS Modern Design | Google Apps Script REST API Backend
+ * iOS Modern Design | Multi-Mode (60s & Endless) | Mock Fallback
+ * Lightning Boost Skill | News Ticker | Unified Database Schema
  * ============================================================
- * 
- * API Communication Layer:
- * - Uses text/plain Content-Type to bypass CORS preflight
- * - Exponential backoff retry for network resilience
- * - Dual GET/POST support for maximum compatibility
  */
 
-/* ============================================
-   CONFIGURATION & CONSTANTS
-   ============================================ */
 const CONFIG = {
-    // Google Apps Script Web App URL (REPLACE AFTER DEPLOYMENT)
-    // Deploy with: Execute as Me, Access: Anyone, even anonymous
-    API_BASE_URL: 'https://script.google.com/macros/s/AKfycbz_bUCjaDWQckVsEaYwHSYNOH9FVFl3u8xz8pHmDy1pcYE3_hcKHGEoPTiV6OH5iq49aQ/exec',
-    
-    // Game Settings
+    API_BASE_URL: 'https://script.google.com/macros/s/AKfycbyEw1249Gbi9-i_zhw-aqkwiE1wOHRQARzD40hmlaNSAHqxOwfjjsnNP_Jn22kA_EUPcQ/exec',
     GAME_DURATION: 60,
-    
-    // Retry Settings
     MAX_RETRIES: 5,
     INITIAL_RETRY_DELAY: 1000,
     RETRY_MULTIPLIER: 2,
-    
-    // Leaderboard Refresh
     LEADERBOARD_REFRESH_INTERVAL: 8000,
-    
-    // Country Flags Mapping (ISO country code -> flag emoji)
-    // Only country flags are permitted per specification
     FLAGS: {
         'US': '\u{1F1FA}\u{1F1F8}', 'ID': '\u{1F1EE}\u{1F1E9}', 'GB': '\u{1F1EC}\u{1F1E7}',
         'JP': '\u{1F1EF}\u{1F1F5}', 'KR': '\u{1F1F0}\u{1F1F7}', 'DE': '\u{1F1E9}\u{1F1EA}',
@@ -108,6 +90,130 @@ const CONFIG = {
 };
 
 /* ============================================
+   MOCK API ENGINE (Fallback)
+   ============================================ */
+const MockEngine = {
+    users: [],
+    leaderboard60s: [],
+    leaderboardEndless: [],
+
+    init() {
+        const flags = ['US', 'JP', 'GB', 'DE', 'ID', 'KR', 'FR', 'BR'];
+        const names60s = ['SpeedDemon', 'ClickMaster', 'TapKing', 'FingerFly', 'SwiftTap', 'ClickNinja', 'TapBeast', 'RapidFire'];
+        for (let i = 0; i < 8; i++) {
+            this.leaderboard60s.push({
+                username: names60s[i],
+                countryFlag: flags[i],
+                highScore: 350 - (i * 25),
+                highestTime: 0,
+                timestamp: `2026-07-09 ${10 + i}:00:00`
+            });
+        }
+        const eNames = ['MarathonPro', 'EnduranceKing', 'StaminaStar', 'LongRun', 'TapMarathon'];
+        for (let i = 0; i < 5; i++) {
+            this.leaderboardEndless.push({
+                username: eNames[i],
+                countryFlag: flags[i],
+                highScore: 3000 - (i * 300),
+                highestTime: 3600 - (i * 300),
+                timestamp: `2026-07-09 ${10 + i}:00:00`
+            });
+        }
+    },
+
+    handle(action, data) {
+        const ts = () => {
+            const n = new Date();
+            return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+        };
+
+        switch(action) {
+            case 'register': {
+                const existing = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                if (existing) return { success: false, error: 'Username has already been taken', code: 'DUPLICATE_USERNAME' };
+                const user = {
+                    username: data.username,
+                    password: data.password,
+                    countryFlag: data.countryFlag,
+                    highScore: 0,
+                    highestTime: 0,
+                    highestClicks: 0,
+                    timestamp: ts()
+                };
+                this.users.push(user);
+                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: 0, highestTime: 0, highestClicks: 0 }};
+            }
+            case 'login': {
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase() && u.password === data.password);
+                if (!user) return { success: false, error: 'Invalid username or password', code: 'AUTH_FAILED' };
+                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: user.highScore, highestTime: user.highestTime, highestClicks: user.highestClicks }};
+            }
+            case 'saveHighScore': {
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                if (!user) return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
+                const mode = data.mode || '60s';
+                const score = parseInt(data.highScore || data.highestClicks) || 0;
+                const duration = parseInt(data.durationSeconds || data.highestTimeSeconds) || 0;
+                user.timestamp = ts();
+
+                if (mode === 'endless') {
+                    let updated = false;
+                    if (score > (user.highestClicks || 0)) { user.highestClicks = score; updated = true; }
+                    if (duration > (user.highestTime || 0)) { user.highestTime = duration; updated = true; }
+                    const existing = this.leaderboardEndless.find(e => e.username === user.username);
+                    if (existing) {
+                        existing.highScore = user.highestClicks;
+                        existing.highestTime = user.highestTime;
+                        existing.timestamp = user.timestamp;
+                    } else {
+                        this.leaderboardEndless.push({ username: user.username, countryFlag: user.countryFlag, highScore: user.highestClicks, highestTime: user.highestTime, timestamp: user.timestamp });
+                    }
+                    this.leaderboardEndless.sort((a, b) => {
+                        if (b.highScore !== a.highScore) return b.highScore - a.highScore;
+                        if (b.highestTime !== a.highestTime) return b.highestTime - a.highestTime;
+                        return (a.timestamp || '').localeCompare(b.timestamp || '');
+                    });
+                    return { success: true, message: 'Endless score saved', highestClicks: user.highestClicks, highestTimeSeconds: user.highestTime, newBest: updated };
+                } else {
+                    if (score > user.highScore) {
+                        user.highScore = score;
+                        const existing = this.leaderboard60s.find(e => e.username === user.username);
+                        if (existing) {
+                            existing.highScore = score;
+                            existing.timestamp = user.timestamp;
+                        } else {
+                            this.leaderboard60s.push({ username: user.username, countryFlag: user.countryFlag, highScore: score, timestamp: user.timestamp });
+                        }
+                        this.leaderboard60s.sort((a, b) => b.highScore - a.highScore);
+                        return { success: true, message: 'New personal best saved!', highScore: score, newBest: true };
+                    }
+                    return { success: true, message: 'Score not updated', highScore: user.highScore, newBest: false };
+                }
+            }
+            case 'getLeaderboard': {
+                const mode = data.mode || '60s';
+                if (mode === 'endless') {
+                    return { success: true, data: this.leaderboardEndless.slice(0, 100), totalPlayers: this.leaderboardEndless.length };
+                }
+                return { success: true, data: this.leaderboard60s.slice(0, 100), totalPlayers: this.leaderboard60s.length };
+            }
+            case 'getUserStats': {
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                if (!user) return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
+                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: user.highScore, highestClicks: user.highestClicks, highestTime: user.highestTime, timestamp: user.timestamp }};
+            }
+            case 'getNews': {
+                return { success: true, newsText: 'Welcome to ClickFun.io v2.0! Lightning Boost is now live!', newsStatus: 'ON' };
+            }
+            default:
+                return { success: false, error: 'Unknown action: ' + action, code: 'UNKNOWN_ACTION' };
+        }
+    }
+};
+
+MockEngine.init();
+
+/* ============================================
    STATE MANAGEMENT
    ============================================ */
 const State = {
@@ -115,25 +221,52 @@ const State = {
     currentUser: null,
     currentSlide: 0,
     totalSlides: 4,
+    currentMode: '60s',
     gameActive: false,
     gamePaused: false,
     clickCount: 0,
     timerValue: CONFIG.GAME_DURATION,
     timerInterval: null,
     leaderboardInterval: null,
-    leaderboardData: [],
+    leaderboardData60s: [],
+    leaderboardDataEndless: [],
     personalBest: 0,
     globalRank: '--',
-    
+    endlessStats: { highestClicks: 0, highestTime: 0 },
+    endlessRank: '--',
+    skillClicks: 0,
+    isSkillReady: false,
+    isSkillActive: false,
+    skillTimer: null,
+    activeMultiplier: 1,
+    skillDuration: 20,
+    skillMaxClicks: 500,
+    newsText: '',
+    newsStatus: 'OFF',
+
     setUser(user) {
         this.currentUser = user;
         this.personalBest = user?.highScore || 0;
+        this.endlessStats = {
+            highestClicks: user?.highestClicks || 0,
+            highestTime: user?.highestTime || 0
+        };
     },
-    
+
     clearUser() {
         this.currentUser = null;
         this.personalBest = 0;
         this.globalRank = '--';
+        this.endlessStats = { highestClicks: 0, highestTime: 0 };
+        this.endlessRank = '--';
+        this.skillClicks = 0;
+        this.isSkillReady = false;
+        this.isSkillActive = false;
+        this.activeMultiplier = 1;
+        if (this.skillTimer) {
+            clearInterval(this.skillTimer);
+            this.skillTimer = null;
+        }
     }
 };
 
@@ -143,20 +276,17 @@ const State = {
 const DOM = {};
 
 function cacheDOM() {
-    // Views
     DOM.viewLoading = document.getElementById('view-loading');
     DOM.viewOnboard = document.getElementById('view-onboard');
     DOM.viewAuth = document.getElementById('view-auth');
     DOM.viewDashboard = document.getElementById('view-dashboard');
-    
-    // Onboarding
+
     DOM.onboardSlides = document.getElementById('onboard-slides');
     DOM.onboardDots = document.getElementById('onboard-dots');
     DOM.navPrev = document.getElementById('nav-prev');
     DOM.navNext = document.getElementById('nav-next');
     DOM.btnStartJourney = document.getElementById('btn-start-journey');
-    
-    // Auth
+
     DOM.authTabs = document.querySelectorAll('.auth-tab');
     DOM.authTabIndicator = document.querySelector('.auth-tab-indicator');
     DOM.formLogin = document.getElementById('form-login');
@@ -164,8 +294,7 @@ function cacheDOM() {
     DOM.btnLogin = document.getElementById('btn-login');
     DOM.btnRegister = document.getElementById('btn-register');
     DOM.togglePasswordBtns = document.querySelectorAll('.toggle-password');
-    
-    // Dashboard
+
     DOM.dashUsername = document.getElementById('dash-username');
     DOM.dashAvatar = document.getElementById('dash-avatar');
     DOM.btnLogout = document.getElementById('btn-logout');
@@ -174,32 +303,59 @@ function cacheDOM() {
     DOM.previewRank = document.getElementById('preview-rank');
     DOM.sectionPlay = document.getElementById('section-play');
     DOM.sectionLeaderboard = document.getElementById('section-leaderboard');
-    DOM.lbList = document.getElementById('lb-list');
     DOM.navItems = document.querySelectorAll('.nav-item');
-    
-    // Game Arena
+
+    DOM.modeSlides = document.getElementById('mode-slides');
+    DOM.modeDots = document.getElementById('mode-dots');
+    DOM.statsGroups = document.querySelectorAll('.stats-group');
+    DOM.playCardTitle = document.getElementById('play-card-title');
+    DOM.playCardDesc = document.getElementById('play-card-desc');
+    DOM.previewEndlessTime = document.getElementById('preview-endless-time');
+    DOM.previewEndlessClicks = document.getElementById('preview-endless-clicks');
+
     DOM.gameArena = document.getElementById('game-arena');
     DOM.gameClicks = document.getElementById('game-clicks');
     DOM.gameTimer = document.getElementById('game-timer');
     DOM.gameHighscore = document.getElementById('game-highscore');
+    DOM.gameHighscoreLabel = document.getElementById('game-highscore-label');
     DOM.timerProgress = document.getElementById('timer-progress');
     DOM.btnPause = document.getElementById('btn-pause');
     DOM.gameZone = document.getElementById('game-zone');
     DOM.clickRipples = document.getElementById('click-ripples');
-    
-    // Modals
+    DOM.gameZoneHint = document.getElementById('game-zone-hint');
+    DOM.timerRingContainer = document.getElementById('timer-ring-container');
+    DOM.stopwatchDisplay = document.getElementById('stopwatch-display');
+    DOM.gameStopwatch = document.getElementById('game-stopwatch');
+
     DOM.modalGameover = document.getElementById('modal-gameover');
     DOM.modalPause = document.getElementById('modal-pause');
     DOM.resultScore = document.getElementById('result-score');
     DOM.resultBest = document.getElementById('result-best');
+    DOM.resultLabelPrimary = document.getElementById('result-label-primary');
+    DOM.resultLabelSecondary = document.getElementById('result-label-secondary');
+    DOM.modalTitle = document.getElementById('modal-title');
+    DOM.modalSubtitle = document.getElementById('modal-subtitle');
     DOM.btnRestartGame = document.getElementById('btn-restart-game');
     DOM.btnReturnMenu = document.getElementById('btn-return-menu');
     DOM.btnViewLb = document.getElementById('btn-view-lb');
     DOM.btnResume = document.getElementById('btn-resume');
     DOM.btnQuitGame = document.getElementById('btn-quit-game');
-    
-    // Toast
+    DOM.btnQuitText = document.getElementById('btn-quit-text');
+
+    DOM.lbModeTabs = document.querySelectorAll('.lb-mode-tab');
+    DOM.lbModeIndicator = document.querySelector('.lb-mode-indicator');
+    DOM.lbPanel60s = document.getElementById('lb-panel-60s');
+    DOM.lbPanelEndless = document.getElementById('lb-panel-endless');
+    DOM.lbList60s = document.getElementById('lb-list-60s');
+    DOM.lbListEndless = document.getElementById('lb-list-endless');
+
     DOM.toastContainer = document.getElementById('toast-container');
+
+    DOM.newsTickerContainer = document.getElementById('news-ticker-container');
+    DOM.newsTickerText = document.getElementById('news-ticker-text');
+    DOM.skillBoostContainer = document.getElementById('btn-skill-boost');
+    DOM.skillRingProgress = document.getElementById('skill-ring-progress');
+    DOM.skillIconLightning = document.getElementById('skill-icon-lightning');
 }
 
 /* ============================================
@@ -211,7 +367,7 @@ function switchView(viewName) {
         const el = document.getElementById(v);
         if (el) el.classList.remove('active');
     });
-    
+
     const target = document.getElementById(`view-${viewName}`);
     if (target) {
         target.classList.add('active');
@@ -225,17 +381,17 @@ function switchView(viewName) {
 function showToast(message, type = 'info', duration = 3000) {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
+
     const icons = {
         success: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
         error: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
         warning: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
         info: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`
     };
-    
+
     toast.innerHTML = `${icons[type] || icons.info}<span>${escapeHtml(message)}</span>`;
     DOM.toastContainer.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.classList.add('toast-out');
         toast.addEventListener('animationend', () => toast.remove());
@@ -249,61 +405,42 @@ function escapeHtml(text) {
 }
 
 /* ============================================
-   API CLIENT WITH EXPONENTIAL BACKOFF RETRY
-   ============================================
-   
-   CRITICAL CORS STRATEGY:
-   - Google Apps Script Web Apps cannot handle preflight OPTIONS requests.
-   - Using Content-Type: text/plain skips the preflight check entirely.
-   - The body is still JSON.stringify()-ed; the backend parses it.
-   - Redirect: 'follow' is required because Apps Script returns 302 redirects.
-   - GET requests use query parameters for safe, idempotent reads.
+   API CLIENT WITH MOCK FALLBACK
    ============================================ */
 async function apiRequest(action, data = {}, method = 'POST') {
     let retries = 0;
     let delay = CONFIG.INITIAL_RETRY_DELAY;
-    
+
     while (retries <= CONFIG.MAX_RETRIES) {
         try {
             let response;
-            
+
             if (method === 'GET') {
-                // GET: Encode parameters in URL query string
                 const params = new URLSearchParams({ action, ...data });
                 const url = `${CONFIG.API_BASE_URL}?${params.toString()}`;
-                
-                response = await fetch(url, {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
+                response = await fetch(url, { method: 'GET', redirect: 'follow' });
             } else {
-                // POST: Use text/plain to bypass CORS preflight
-                // The backend receives the raw string and JSON.parse() it
                 response = await fetch(CONFIG.API_BASE_URL, {
                     method: 'POST',
                     redirect: 'follow',
-                    headers: { 
-                        'Content-Type': 'text/plain;charset=utf-8'
-                    },
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action, ...data })
                 });
             }
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const result = await response.json();
             return result;
-            
+
         } catch (error) {
             retries++;
-            
             if (retries > CONFIG.MAX_RETRIES) {
-                console.error('API Request failed after max retries:', error);
-                throw new Error(`Network error: ${error.message}. Please check your connection and try again.`);
+                console.warn('API fallback to mock engine:', error.message);
+                return MockEngine.handle(action, data);
             }
-            
             showToast(`Retrying... (${retries}/${CONFIG.MAX_RETRIES})`, 'warning', 1500);
             await new Promise(resolve => setTimeout(resolve, delay));
             delay *= CONFIG.RETRY_MULTIPLIER;
@@ -325,39 +462,37 @@ function initLoadingScreen() {
    ============================================ */
 function initOnboarding() {
     updateSlide(0);
-    
+
     DOM.navPrev.addEventListener('click', () => {
         if (State.currentSlide > 0) updateSlide(State.currentSlide - 1);
     });
-    
+
     DOM.navNext.addEventListener('click', () => {
         if (State.currentSlide < State.totalSlides - 1) updateSlide(State.currentSlide + 1);
     });
-    
+
     DOM.btnStartJourney.addEventListener('click', () => {
         switchView('auth');
     });
-    
-    // Dot navigation
+
     DOM.onboardDots.querySelectorAll('.dot').forEach(dot => {
         dot.addEventListener('click', () => {
             updateSlide(parseInt(dot.dataset.index));
         });
     });
-    
-    // Touch/swipe support
+
     let touchStartX = 0;
     let touchEndX = 0;
-    
+
     DOM.onboardSlides.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
     }, { passive: true });
-    
+
     DOM.onboardSlides.addEventListener('touchend', (e) => {
         touchEndX = e.changedTouches[0].screenX;
         handleSwipe();
     }, { passive: true });
-    
+
     function handleSwipe() {
         const diff = touchStartX - touchEndX;
         if (Math.abs(diff) > 50) {
@@ -373,19 +508,19 @@ function initOnboarding() {
 function updateSlide(index) {
     const slides = DOM.onboardSlides.querySelectorAll('.onboard-slide');
     const dots = DOM.onboardDots.querySelectorAll('.dot');
-    
+
     slides.forEach((slide, i) => {
         slide.classList.remove('active', 'prev');
         if (i === index) slide.classList.add('active');
         else if (i < index) slide.classList.add('prev');
     });
-    
+
     dots.forEach((dot, i) => {
         dot.classList.toggle('active', i === index);
     });
-    
+
     State.currentSlide = index;
-    
+
     DOM.navPrev.disabled = index === 0;
     DOM.navNext.disabled = index === State.totalSlides - 1;
     DOM.navNext.style.opacity = index === State.totalSlides - 1 ? '0' : '1';
@@ -396,12 +531,11 @@ function updateSlide(index) {
    VIEW 3: AUTHENTICATION
    ============================================ */
 function initAuth() {
-    // Tab switching
     DOM.authTabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const targetTab = tab.dataset.tab;
             DOM.authTabs.forEach(t => t.classList.toggle('active', t === tab));
-            
+
             if (targetTab === 'register') {
                 DOM.authTabIndicator.classList.add('register');
                 DOM.formLogin.classList.remove('active');
@@ -411,19 +545,18 @@ function initAuth() {
                 DOM.formLogin.classList.add('active');
                 DOM.formRegister.classList.remove('active');
             }
-            
+
             clearFormErrors();
         });
     });
-    
-    // Password visibility toggle
+
     DOM.togglePasswordBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetId = btn.dataset.target;
             const input = document.getElementById(targetId);
             const eyeOpen = btn.querySelector('.eye-open');
             const eyeClosed = btn.querySelector('.eye-closed');
-            
+
             if (input.type === 'password') {
                 input.type = 'text';
                 eyeOpen.style.display = 'none';
@@ -435,33 +568,23 @@ function initAuth() {
             }
         });
     });
-    
-    // Login form
+
     DOM.formLogin.addEventListener('submit', async (e) => {
         e.preventDefault();
         clearFormErrors();
-        
+
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value;
-        
+
         let hasError = false;
-        
-        if (!username) {
-            showFieldError('login-username', 'Username is required');
-            hasError = true;
-        }
-        if (!password) {
-            showFieldError('login-password', 'Password is required');
-            hasError = true;
-        }
-        
+        if (!username) { showFieldError('login-username', 'Username is required'); hasError = true; }
+        if (!password) { showFieldError('login-password', 'Password is required'); hasError = true; }
         if (hasError) return;
-        
+
         setButtonLoading(DOM.btnLogin, true);
-        
+
         try {
             const result = await apiRequest('login', { username, password });
-            
             if (result.success) {
                 State.setUser(result.user);
                 showToast('Welcome back, ' + username + '!', 'success');
@@ -476,47 +599,27 @@ function initAuth() {
             setButtonLoading(DOM.btnLogin, false);
         }
     });
-    
-    // Registration form
+
     DOM.formRegister.addEventListener('submit', async (e) => {
         e.preventDefault();
         clearFormErrors();
-        
+
         const username = document.getElementById('reg-username').value.trim();
         const password = document.getElementById('reg-password').value;
         const confirm = document.getElementById('reg-confirm').value;
         const country = document.getElementById('reg-country').value;
-        
+
         let hasError = false;
-        
-        if (!username || username.length < 3) {
-            showFieldError('reg-username', 'Username must be at least 3 characters');
-            hasError = true;
-        }
-        if (!password || password.length < 4) {
-            showFieldError('reg-password', 'Password must be at least 4 characters');
-            hasError = true;
-        }
-        if (password !== confirm) {
-            showFieldError('reg-confirm', 'Passwords do not match');
-            hasError = true;
-        }
-        if (!country) {
-            showFieldError('reg-country', 'Please select a country');
-            hasError = true;
-        }
-        
+        if (!username || username.length < 3) { showFieldError('reg-username', 'Username must be at least 3 characters'); hasError = true; }
+        if (!password || password.length < 4) { showFieldError('reg-password', 'Password must be at least 4 characters'); hasError = true; }
+        if (password !== confirm) { showFieldError('reg-confirm', 'Passwords do not match'); hasError = true; }
+        if (!country) { showFieldError('reg-country', 'Please select a country'); hasError = true; }
         if (hasError) return;
-        
+
         setButtonLoading(DOM.btnRegister, true);
-        
+
         try {
-            const result = await apiRequest('register', { 
-                username, 
-                password, 
-                countryFlag: country 
-            });
-            
+            const result = await apiRequest('register', { username, password, countryFlag: country });
             if (result.success) {
                 State.setUser(result.user);
                 showToast('Account created successfully!', 'success');
@@ -539,7 +642,7 @@ function showFieldError(fieldId, message) {
     const errorEl = document.getElementById(fieldId + '-error');
     const inputEl = document.getElementById(fieldId);
     const group = inputEl?.closest('.form-group');
-    
+
     if (errorEl) {
         errorEl.textContent = message;
         errorEl.classList.add('visible');
@@ -570,25 +673,109 @@ function enterDashboard() {
     updateDashboardUI();
     startLeaderboardRefresh();
     fetchLeaderboard();
+    fetchNews();
 }
 
 function updateDashboardUI() {
     if (!State.currentUser) return;
-    
+
     DOM.dashUsername.textContent = State.currentUser.username;
     DOM.dashAvatar.textContent = State.currentUser.username.charAt(0).toUpperCase();
     DOM.previewHighscore.textContent = State.personalBest.toLocaleString();
     DOM.previewRank.textContent = State.globalRank;
     DOM.gameHighscore.textContent = State.personalBest.toLocaleString();
+
+    DOM.previewEndlessTime.textContent = formatTime(State.endlessStats.highestTime);
+    DOM.previewEndlessClicks.textContent = State.endlessStats.highestClicks.toLocaleString();
+}
+
+function updateMode(mode) {
+    State.currentMode = mode;
+    const index = mode === '60s' ? 0 : 1;
+
+    DOM.modeSlides.style.transform = `translateX(-${index * 100}%)`;
+    DOM.modeSlides.querySelectorAll('.mode-slide').forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+    });
+    DOM.modeDots.querySelectorAll('.dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i === index);
+    });
+
+    DOM.statsGroups.forEach(group => {
+        const groupMode = group.id === 'stats-60s' ? '60s' : 'endless';
+        group.classList.toggle('active', groupMode === mode);
+    });
+
+    if (mode === '60s') {
+        DOM.playCardTitle.textContent = 'Click Challenge';
+        DOM.playCardDesc.textContent = 'Test your speed in a 60-second clicking marathon. How many clicks can you achieve?';
+        DOM.previewRank.textContent = State.globalRank;
+    } else {
+        DOM.playCardTitle.textContent = 'Endless Marathon';
+        DOM.playCardDesc.textContent = 'No time limit. Click as long as you can endure. Save your progress when you quit.';
+        DOM.previewRank.textContent = State.endlessRank;
+    }
+}
+
+function initModeSelector() {
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    DOM.modeSlides.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    DOM.modeSlides.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0 && State.currentMode === '60s') updateMode('endless');
+            else if (diff < 0 && State.currentMode === 'endless') updateMode('60s');
+        }
+    }, { passive: true });
+
+    DOM.modeDots.querySelectorAll('.dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+            const mode = parseInt(dot.dataset.index) === 0 ? '60s' : 'endless';
+            updateMode(mode);
+        });
+    });
+}
+
+function initLeaderboardTabs() {
+    DOM.lbModeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const mode = tab.dataset.lbMode;
+            DOM.lbModeTabs.forEach(t => t.classList.toggle('active', t === tab));
+
+            if (mode === '60s') {
+                DOM.lbModeIndicator.classList.remove('endless');
+                DOM.lbPanel60s.classList.add('active');
+                DOM.lbPanelEndless.classList.remove('active');
+            } else {
+                DOM.lbModeIndicator.classList.add('endless');
+                DOM.lbPanel60s.classList.remove('active');
+                DOM.lbPanelEndless.classList.add('active');
+            }
+
+            if (mode === '60s' && State.leaderboardData60s.length === 0) {
+                fetchLeaderboard();
+            } else if (mode === 'endless' && State.leaderboardDataEndless.length === 0) {
+                fetchLeaderboard();
+            }
+        });
+    });
 }
 
 function initDashboard() {
-    // Bottom nav
+    initModeSelector();
+    initLeaderboardTabs();
+
     DOM.navItems.forEach(item => {
         item.addEventListener('click', () => {
             const nav = item.dataset.nav;
             DOM.navItems.forEach(n => n.classList.toggle('active', n === item));
-            
+
             if (nav === 'play') {
                 DOM.sectionPlay.classList.add('active');
                 DOM.sectionLeaderboard.classList.remove('active');
@@ -599,8 +786,7 @@ function initDashboard() {
             }
         });
     });
-    
-    // Logout
+
     DOM.btnLogout.addEventListener('click', () => {
         State.clearUser();
         stopLeaderboardRefresh();
@@ -608,11 +794,9 @@ function initDashboard() {
         switchView('auth');
         showToast('Logged out successfully', 'info');
     });
-    
-    // Start game
+
     DOM.btnStartGame.addEventListener('click', startGame);
-    
-    // Game controls
+
     DOM.btnPause.addEventListener('click', pauseGame);
     DOM.btnResume.addEventListener('click', resumeGame);
     DOM.btnQuitGame.addEventListener('click', quitGame);
@@ -632,12 +816,15 @@ function initDashboard() {
         DOM.sectionLeaderboard.classList.add('active');
         fetchLeaderboard();
     });
-    
-    // Game zone click
+
     DOM.gameZone.addEventListener('mousedown', handleGameClick);
     DOM.gameZone.addEventListener('touchstart', handleGameClick, { passive: false });
-    
-    // Modal backdrop close
+
+    DOM.skillBoostContainer?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleSkillClick();
+    });
+
     document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
         backdrop.addEventListener('click', () => {
             const modal = backdrop.closest('.ios-modal');
@@ -653,14 +840,40 @@ function clearForms() {
 }
 
 /* ============================================
+   NEWS TICKER
+   ============================================ */
+async function fetchNews() {
+    try {
+        const result = await apiRequest('getNews', {}, 'GET');
+        if (result.success) {
+            State.newsText = result.newsText || '';
+            State.newsStatus = result.newsStatus || 'OFF';
+            updateNewsTicker();
+        }
+    } catch (error) {
+        console.error('Failed to fetch news:', error);
+    }
+}
+
+function updateNewsTicker() {
+    if (!DOM.newsTickerContainer) return;
+    if (State.newsStatus === 'OFF' || !State.newsText) {
+        DOM.newsTickerContainer.classList.add('hidden');
+    } else {
+        DOM.newsTickerContainer.classList.remove('hidden');
+        DOM.newsTickerText.textContent = State.newsText;
+    }
+}
+
+/* ============================================
    LEADERBOARD
    ============================================ */
 function startLeaderboardRefresh() {
     if (State.leaderboardInterval) clearInterval(State.leaderboardInterval);
     State.leaderboardInterval = setInterval(() => {
-        if (State.currentView === 'dashboard' && 
-            DOM.sectionLeaderboard.classList.contains('active')) {
+        if (State.currentView === 'dashboard') {
             fetchLeaderboard();
+            fetchNews();
         }
     }, CONFIG.LEADERBOARD_REFRESH_INTERVAL);
 }
@@ -674,41 +887,51 @@ function stopLeaderboardRefresh() {
 
 async function fetchLeaderboard() {
     try {
-        // Use GET for leaderboard (idempotent read operation)
-        const result = await apiRequest('getLeaderboard', {}, 'GET');
-        
-        if (result.success) {
-            State.leaderboardData = result.data || [];
-            renderLeaderboard();
-            updateUserRank();
+        const [result60s, resultEndless] = await Promise.all([
+            apiRequest('getLeaderboard', { mode: '60s' }, 'GET'),
+            apiRequest('getLeaderboard', { mode: 'endless' }, 'GET')
+        ]);
+
+        if (result60s.success) {
+            State.leaderboardData60s = result60s.data || [];
+            renderLeaderboard60s();
         }
+        if (resultEndless.success) {
+            State.leaderboardDataEndless = resultEndless.data || [];
+            renderLeaderboardEndless();
+        }
+
+        updateUserRank();
     } catch (error) {
         console.error('Failed to fetch leaderboard:', error);
     }
 }
 
-function renderLeaderboard() {
-    const data = State.leaderboardData;
-    
+function renderLeaderboard60s() {
+    const data = State.leaderboardData60s;
+    const container = DOM.lbList60s;
+
     if (!data || data.length === 0) {
-        DOM.lbList.innerHTML = `<div class="lb-empty">No scores yet. Be the first!</div>`;
+        if (!container.dataset.hasData) {
+            container.innerHTML = `<div class="lb-empty">No scores yet. Be the first!</div>`;
+        }
         return;
     }
-    
+
+    container.dataset.hasData = 'true';
     const currentUsername = State.currentUser?.username;
-    
-    DOM.lbList.innerHTML = data.map((entry, index) => {
+
+    const html = data.map((entry, index) => {
         const rank = index + 1;
         const isCurrentUser = entry.username === currentUsername;
         const flag = CONFIG.FLAGS[entry.countryFlag] || '\u{1F30D}';
         const rankClass = rank <= 3 ? `rank-${rank}` : '';
-        
-        // Use SVG rank badges instead of emoji medals per specification
+
         const rankDisplay = rank === 1 ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>' :
                            rank === 2 ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>' :
                            rank === 3 ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CD7F32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>' :
                            '#' + rank;
-        
+
         return `
             <div class="lb-row ${rankClass} ${isCurrentUser ? 'current-user' : ''}" style="animation-delay: ${index * 0.05}s">
                 <span class="lb-col-rank">${rankDisplay}</span>
@@ -718,43 +941,180 @@ function renderLeaderboard() {
             </div>
         `;
     }).join('');
+
+    if (container.innerHTML !== html) {
+        container.innerHTML = html;
+    }
+}
+
+function renderLeaderboardEndless() {
+    const data = State.leaderboardDataEndless;
+    const container = DOM.lbListEndless;
+
+    if (!data || data.length === 0) {
+        if (!container.dataset.hasData) {
+            container.innerHTML = `<div class="lb-empty">No endless scores yet. Be the first!</div>`;
+        }
+        return;
+    }
+
+    container.dataset.hasData = 'true';
+    const currentUsername = State.currentUser?.username;
+
+    const html = data.map((entry, index) => {
+        const rank = index + 1;
+        const isCurrentUser = entry.username === currentUsername;
+        const flag = CONFIG.FLAGS[entry.countryFlag] || '\u{1F30D}';
+        const timeStr = formatTime(entry.highestTime || 0);
+
+        const rankDisplay = rank === 1 ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>' :
+                           rank === 2 ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>' :
+                           rank === 3 ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CD7F32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>' :
+                           '#' + rank;
+
+        return `
+            <div class="lb-row ${isCurrentUser ? 'current-user' : ''}" style="animation-delay: ${index * 0.05}s">
+                <span class="lb-col-rank">${rankDisplay}</span>
+                <span class="lb-col-flag">${flag}</span>
+                <span class="lb-col-user">${escapeHtml(entry.username)}</span>
+                <span class="lb-col-time">${timeStr}</span>
+                <span class="lb-col-score">${(entry.highScore || 0).toLocaleString()}</span>
+            </div>
+        `;
+    }).join('');
+
+    if (container.innerHTML !== html) {
+        container.innerHTML = html;
+    }
 }
 
 function updateUserRank() {
     if (!State.currentUser) return;
-    
-    const data = State.leaderboardData;
-    const index = data.findIndex(e => e.username === State.currentUser.username);
-    
-    if (index >= 0) {
-        State.globalRank = '#' + (index + 1);
+
+    const idx60s = State.leaderboardData60s.findIndex(e => e.username === State.currentUser.username);
+    State.globalRank = idx60s >= 0 ? '#' + (idx60s + 1) : '--';
+
+    const idxEndless = State.leaderboardDataEndless.findIndex(e => e.username === State.currentUser.username);
+    State.endlessRank = idxEndless >= 0 ? '#' + (idxEndless + 1) : '--';
+
+    if (State.currentMode === '60s') {
+        DOM.previewRank.textContent = State.globalRank;
     } else {
-        State.globalRank = '--';
+        DOM.previewRank.textContent = State.endlessRank;
     }
-    
-    DOM.previewRank.textContent = State.globalRank;
+}
+
+/* ============================================
+   SKILL BOOST SYSTEM
+   ============================================ */
+function calculateMultiplier() {
+    const roll = Math.random() * 100;
+    if (roll < 1) return 64;
+    if (roll < 5) return 32;
+    if (roll < 12) return 16;
+    if (roll < 25) return 8;
+    if (roll < 50) return 4;
+    return 2;
+}
+
+function updateSkillVisual() {
+    if (!DOM.skillRingProgress) return;
+    const circumference = 113.097;
+    if (State.isSkillActive) return;
+    const offset = circumference - (State.skillClicks / State.skillMaxClicks) * circumference;
+    DOM.skillRingProgress.style.strokeDashoffset = Math.max(0, offset);
+}
+
+function handleSkillClick() {
+    if (!State.isSkillReady || State.isSkillActive) return;
+    activateSkillBoost();
+}
+
+function activateSkillBoost() {
+    State.isSkillActive = true;
+    State.isSkillReady = false;
+    State.skillClicks = 0;
+    DOM.skillBoostContainer.classList.remove('skill-ready');
+    DOM.skillBoostContainer.classList.add('skill-active');
+
+    let remaining = State.skillDuration;
+    const circumference = 113.097;
+    DOM.skillRingProgress.style.strokeDashoffset = 0;
+
+    State.skillTimer = setInterval(() => {
+        remaining--;
+        const offset = ((State.skillDuration - remaining) / State.skillDuration) * circumference;
+        DOM.skillRingProgress.style.strokeDashoffset = offset;
+
+        if (remaining <= 0) {
+            deactivateSkillBoost();
+        }
+    }, 1000);
+}
+
+function deactivateSkillBoost() {
+    if (State.skillTimer) {
+        clearInterval(State.skillTimer);
+        State.skillTimer = null;
+    }
+    State.isSkillActive = false;
+    State.activeMultiplier = 1;
+    State.skillClicks = 0;
+    DOM.skillBoostContainer.classList.remove('skill-active');
+    DOM.skillRingProgress.style.strokeDashoffset = 113.097;
 }
 
 /* ============================================
    GAME ENGINE
    ============================================ */
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+function resetSkillState() {
+    if (State.skillTimer) {
+        clearInterval(State.skillTimer);
+        State.skillTimer = null;
+    }
+    State.skillClicks = 0;
+    State.isSkillReady = false;
+    State.isSkillActive = false;
+    State.activeMultiplier = 1;
+    DOM.skillBoostContainer?.classList.remove('skill-ready', 'skill-active');
+    updateSkillVisual();
+}
+
 function startGame() {
     State.gameActive = true;
     State.gamePaused = false;
     State.clickCount = 0;
-    State.timerValue = CONFIG.GAME_DURATION;
-    
     DOM.gameClicks.textContent = '0';
-    DOM.gameTimer.textContent = CONFIG.GAME_DURATION;
-    DOM.gameHighscore.textContent = State.personalBest.toLocaleString();
-    updateTimerRing(CONFIG.GAME_DURATION);
-    
-    DOM.gameArena.classList.add('active');
     DOM.clickRipples.innerHTML = '';
-    
+    resetSkillState();
+
+    if (State.currentMode === '60s') {
+        State.timerValue = CONFIG.GAME_DURATION;
+        DOM.gameTimer.textContent = CONFIG.GAME_DURATION;
+        DOM.timerRingContainer.style.display = 'block';
+        DOM.stopwatchDisplay.style.display = 'none';
+        updateTimerRing(CONFIG.GAME_DURATION);
+        DOM.gameHighscoreLabel.innerHTML = `Personal Best: <strong>${State.personalBest.toLocaleString()}</strong>`;
+        DOM.gameZoneHint.textContent = 'Tap anywhere to click!';
+    } else {
+        State.timerValue = 0;
+        DOM.gameStopwatch.textContent = '00:00:00';
+        DOM.timerRingContainer.style.display = 'none';
+        DOM.stopwatchDisplay.style.display = 'flex';
+        DOM.gameHighscoreLabel.innerHTML = `Best: <strong>${State.endlessStats.highestClicks.toLocaleString()}</strong> clicks · <strong>${formatTime(State.endlessStats.highestTime)}</strong>`;
+        DOM.gameZoneHint.textContent = 'Tap anywhere to click! Tap pause to save your run.';
+    }
+
+    DOM.gameArena.classList.add('active');
     startTimer();
-    
-    // Hide hint after first click
+
     setTimeout(() => {
         DOM.gameZone.classList.add('clicking');
     }, 2000);
@@ -762,22 +1122,27 @@ function startGame() {
 
 function startTimer() {
     if (State.timerInterval) clearInterval(State.timerInterval);
-    
+
     State.timerInterval = setInterval(() => {
         if (State.gamePaused) return;
-        
-        State.timerValue--;
-        DOM.gameTimer.textContent = State.timerValue;
-        updateTimerRing(State.timerValue);
-        
-        if (State.timerValue <= 10) {
-            DOM.gameTimer.style.color = 'var(--color-danger)';
+
+        if (State.currentMode === '60s') {
+            State.timerValue--;
+            DOM.gameTimer.textContent = State.timerValue;
+            updateTimerRing(State.timerValue);
+
+            if (State.timerValue <= 10) {
+                DOM.gameTimer.style.color = 'var(--color-danger)';
+            } else {
+                DOM.gameTimer.style.color = '';
+            }
+
+            if (State.timerValue <= 0) {
+                endGame();
+            }
         } else {
-            DOM.gameTimer.style.color = '';
-        }
-        
-        if (State.timerValue <= 0) {
-            endGame();
+            State.timerValue++;
+            DOM.gameStopwatch.textContent = formatTime(State.timerValue);
         }
     }, 1000);
 }
@@ -790,21 +1155,40 @@ function updateTimerRing(seconds) {
 
 function handleGameClick(e) {
     if (!State.gameActive || State.gamePaused) return;
-    
     e.preventDefault();
-    
-    State.clickCount++;
+
+    let added = 1;
+    let multiplier = 1;
+
+    if (State.isSkillActive) {
+        multiplier = calculateMultiplier();
+        added = multiplier;
+    } else {
+        if (!State.isSkillReady && State.skillClicks < State.skillMaxClicks) {
+            State.skillClicks++;
+            updateSkillVisual();
+            if (State.skillClicks >= State.skillMaxClicks) {
+                State.isSkillReady = true;
+                DOM.skillBoostContainer.classList.add('skill-ready');
+            }
+        }
+    }
+
+    State.clickCount += added;
     DOM.gameClicks.textContent = State.clickCount.toLocaleString();
-    
-    // Create ripple effect
+
     const rect = DOM.gameZone.getBoundingClientRect();
     const x = e.type.includes('touch') ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
     const y = e.type.includes('touch') ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    
+
     createRipple(x, y);
-    createFloatText(x, y);
-    
-    // Haptic-like feedback via visual
+
+    if (multiplier > 1) {
+        createMultiplierText(x, y, multiplier);
+    } else {
+        createFloatText(x, y);
+    }
+
     DOM.gameZone.style.transform = 'scale(0.995)';
     setTimeout(() => {
         DOM.gameZone.style.transform = 'scale(1)';
@@ -817,7 +1201,6 @@ function createRipple(x, y) {
     ripple.style.left = x + 'px';
     ripple.style.top = y + 'px';
     DOM.clickRipples.appendChild(ripple);
-    
     ripple.addEventListener('animationend', () => ripple.remove());
 }
 
@@ -828,13 +1211,23 @@ function createFloatText(x, y) {
     float.style.left = x + 'px';
     float.style.top = y + 'px';
     DOM.clickRipples.appendChild(float);
-    
+    float.addEventListener('animationend', () => float.remove());
+}
+
+function createMultiplierText(x, y, multiplier) {
+    const float = document.createElement('div');
+    float.className = 'multiplier-pop';
+    float.textContent = '+' + multiplier + 'x';
+    float.style.left = x + 'px';
+    float.style.top = y + 'px';
+    DOM.clickRipples.appendChild(float);
     float.addEventListener('animationend', () => float.remove());
 }
 
 function pauseGame() {
     if (!State.gameActive) return;
     State.gamePaused = true;
+    DOM.btnQuitText.textContent = State.currentMode === 'endless' ? 'Save & Return to Menu' : 'Quit to Menu';
     openModal(DOM.modalPause);
 }
 
@@ -844,9 +1237,16 @@ function resumeGame() {
 }
 
 function quitGame() {
+    if (State.currentMode === 'endless' && State.gameActive) {
+        closeModal(DOM.modalPause);
+        endGame();
+        return;
+    }
+
     State.gameActive = false;
     State.gamePaused = false;
     if (State.timerInterval) clearInterval(State.timerInterval);
+    deactivateSkillBoost();
     closeModal(DOM.modalPause);
     DOM.gameArena.classList.remove('active');
     DOM.gameZone.classList.remove('clicking');
@@ -856,40 +1256,76 @@ async function endGame() {
     State.gameActive = false;
     State.gamePaused = false;
     if (State.timerInterval) clearInterval(State.timerInterval);
-    
+    deactivateSkillBoost();
+
     DOM.gameTimer.style.color = '';
-    
-    const isNewBest = State.clickCount > State.personalBest;
-    if (isNewBest) {
-        State.personalBest = State.clickCount;
-        DOM.previewHighscore.textContent = State.personalBest.toLocaleString();
-    }
-    
-    // Show results
-    DOM.resultScore.textContent = State.clickCount.toLocaleString();
-    DOM.resultBest.textContent = State.personalBest.toLocaleString();
-    
-    openModal(DOM.modalGameover);
-    
-    // Save score to database using saveHighScore action
-    if (State.currentUser) {
-        try {
-            await apiRequest('saveHighScore', {
-                username: State.currentUser.username,
-                highScore: State.clickCount
-            });
-            
-            if (isNewBest) {
+
+    if (State.currentMode === '60s') {
+        const isNewBest = State.clickCount > State.personalBest;
+        if (isNewBest) {
+            State.personalBest = State.clickCount;
+            DOM.previewHighscore.textContent = State.personalBest.toLocaleString();
+        }
+
+        DOM.modalTitle.textContent = "Time's Up!";
+        DOM.modalSubtitle.textContent = 'Great effort! Here are your results.';
+        DOM.resultLabelPrimary.textContent = 'Your Score';
+        DOM.resultScore.textContent = State.clickCount.toLocaleString();
+        DOM.resultLabelSecondary.textContent = 'Personal Best';
+        DOM.resultBest.textContent = State.personalBest.toLocaleString();
+
+        if (State.currentUser && isNewBest) {
+            try {
+                await apiRequest('saveHighScore', {
+                    username: State.currentUser.username,
+                    highScore: State.clickCount,
+                    mode: '60s'
+                });
                 showToast('New personal best!', 'success');
+            } catch (e) {
+                console.error('Failed to save score:', e);
+                showToast('Score saved locally. Will sync when online.', 'warning');
             }
-            
-            // Refresh leaderboard
-            fetchLeaderboard();
-        } catch (error) {
-            console.error('Failed to save score:', error);
-            showToast('Score saved locally. Will sync when online.', 'warning');
+        }
+    } else {
+        const duration = State.timerValue;
+        const clicks = State.clickCount;
+        const isNewClickBest = clicks > State.endlessStats.highestClicks;
+        const isNewTimeBest = duration > State.endlessStats.highestTime;
+
+        if (isNewClickBest) State.endlessStats.highestClicks = clicks;
+        if (isNewTimeBest) State.endlessStats.highestTime = duration;
+
+        DOM.previewEndlessTime.textContent = formatTime(State.endlessStats.highestTime);
+        DOM.previewEndlessClicks.textContent = State.endlessStats.highestClicks.toLocaleString();
+
+        DOM.modalTitle.textContent = 'Session Complete';
+        DOM.modalSubtitle.textContent = 'Your endurance run has been recorded.';
+        DOM.resultLabelPrimary.textContent = 'Clicks Achieved';
+        DOM.resultScore.textContent = clicks.toLocaleString();
+        DOM.resultLabelSecondary.textContent = 'Time Survived';
+        DOM.resultBest.textContent = formatTime(duration);
+
+        if (State.currentUser) {
+            try {
+                await apiRequest('saveHighScore', {
+                    username: State.currentUser.username,
+                    highestClicks: clicks,
+                    highestTimeSeconds: duration,
+                    mode: 'endless'
+                });
+                if (isNewClickBest || isNewTimeBest) {
+                    showToast('New endless record saved!', 'success');
+                }
+            } catch (e) {
+                console.error('Failed to save endless score:', e);
+                showToast('Score saved locally. Will sync when online.', 'warning');
+            }
         }
     }
+
+    openModal(DOM.modalGameover);
+    fetchLeaderboard();
 }
 
 /* ============================================
@@ -917,10 +1353,9 @@ function initKeyboardShortcuts() {
                 pauseGame();
             }
         }
-        
+
         if (e.key === ' ' && State.gameActive && !State.gamePaused) {
             e.preventDefault();
-            // Simulate a click in center
             const rect = DOM.gameZone.getBoundingClientRect();
             const fakeEvent = {
                 type: 'mousedown',
@@ -945,10 +1380,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initKeyboardShortcuts();
 });
 
-// Prevent context menu on game zone
 DOM.gameZone?.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// Prevent zoom on double tap
 document.addEventListener('dblclick', (e) => {
     if (State.gameActive) e.preventDefault();
 }, { passive: false });
