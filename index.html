@@ -84,10 +84,26 @@
                     </div>
                     <div class="slide-text">
                         <h2>Dominate the Leaderboard</h2>
-                        <p>Compete with players worldwide. Only the fastest clickers claim the top spots. Will you be number one?</p>
+                        <p>Compete in 60s Speed and Endurance Marathon modes. Ties are broken by fastest time, then by historical priority.</p>
                     </div>
                 </div>
                 <div class="onboard-slide" data-slide="3">
+                    <div class="slide-visual">
+                        <div class="visual-circle visual-5">
+                            <svg viewBox="0 0 120 120" fill="none">
+                                <rect x="20" y="20" width="80" height="80" rx="16" stroke="#AF52DE" stroke-width="3"/>
+                                <path d="M40 60l12 12 28-28" stroke="#AF52DE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="90" cy="30" r="8" fill="#FF2D55"/>
+                                <path d="M86 30h8M90 26v8" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="slide-text">
+                        <h2>Events, Boosts & Skins</h2>
+                        <p>Join limited-time events to unlock exclusive Purple Night themes. Activate Lightning Boost for massive multipliers up to 64x, and build your personal skin collection.</p>
+                    </div>
+                </div>
+                <div class="onboard-slide" data-slide="4">
                     <div class="slide-visual">
                         <div class="visual-circle visual-4">
                             <svg viewBox="0 0 120 120" fill="none">
@@ -124,6 +140,7 @@
                 <button class="dot" data-index="1" aria-label="Slide 2"></button>
                 <button class="dot" data-index="2" aria-label="Slide 3"></button>
                 <button class="dot" data-index="3" aria-label="Slide 4"></button>
+                <button class="dot" data-index="4" aria-label="Slide 5"></button>
             </div>
         </div>
     </div>
@@ -625,14 +642,102 @@
                     </div>
                     <div class="lb-panel" id="lb-panel-endless">
                         <div class="lb-table-container">
-                            <div class="lb-table-header">
+                            <div class="lb-table-header endless-header">
                                 <span class="lb-col-rank">Rank</span>
                                 <span class="lb-col-flag"></span>
                                 <span class="lb-col-user">Player</span>
-                                <span class="lb-col-time">Time</span>
-                                <span class="lb-col-score">Clicks</span>
+                                <span class="lb-col-meta">Time / Clicks</span>
                             </div>
                             <div class="lb-list" id="lb-list-endless"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dash-section" id="section-event">
+                <div class="event-hero">
+                    <div class="event-banner">
+                        <img src="Img/event-banner.png" alt="Event Background">
+                        <div class="event-banner-overlay">
+                            <span class="event-tag">Limited Time</span>
+                            <h2>Event Background</h2>
+                            <p>Endurance Challenge</p>
+                        </div>
+                    </div>
+                    <div class="event-countdown-card">
+                        <span class="event-countdown-label">Event Ends In</span>
+                        <span class="event-countdown-value" id="event-countdown">--</span>
+                    </div>
+                </div>
+                
+                <div class="event-rules-card">
+                    <h3>Mission Rules</h3>
+                    <ul class="event-rules-list">
+                        <li>Play Endless Mode continuously for exactly 5 minutes (300 seconds)</li>
+                        <li>Accumulate at least 10,000 raw clicks within that single run</li>
+                        <li>If 5 minutes pass and clicks are under 10,000, the mission fails</li>
+                    </ul>
+                </div>
+                
+                <div class="event-progress-card">
+                    <h3>Mission Status</h3>
+                    <div class="event-status-row">
+                        <span class="event-status-label">Current Status</span>
+                        <span class="event-status-value" id="event-status-text">Not Started</span>
+                    </div>
+                    <div class="event-reward-block">
+                        <div class="reward-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <div class="reward-info">
+                            <span class="reward-name">Purple Night Theme</span>
+                            <span class="reward-type">Premium Skin</span>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="btn-claim-reward" disabled>
+                        <span class="btn-text">Claim Reward</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="dash-section" id="section-collection">
+                <div class="collection-header">
+                    <h2>Skin Collection</h2>
+                    <p>Customize your interface with unlockable themes</p>
+                </div>
+                
+                <div class="skins-grid" id="skins-grid">
+                    <div class="skin-card" data-skin="default">
+                        <div class="skin-preview skin-preview-default"></div>
+                        <div class="skin-info">
+                            <h3>Default Light</h3>
+                            <p>Clean iOS aesthetic</p>
+                        </div>
+                        <button class="btn-skin-toggle active" data-skin="default">Active</button>
+                    </div>
+                    
+                    <div class="skin-card locked" data-skin="dark_premium">
+                        <div class="skin-preview skin-preview-dark"></div>
+                        <div class="skin-info">
+                            <h3>Purple Night</h3>
+                            <p>Premium dark theme</p>
+                        </div>
+                        <button class="btn-skin-toggle" data-skin="dark_premium" disabled>Locked</button>
+                    </div>
+                </div>
+                
+                <div class="collection-divider">
+                    <span>Upcoming Skins</span>
+                </div>
+                
+                <div class="skins-upcoming">
+                    <div class="skin-card upcoming">
+                        <div class="skin-preview skin-preview-gold"></div>
+                        <div class="skin-info">
+                            <h3>Golden Touch</h3>
+                            <p>Coming soon</p>
                         </div>
                     </div>
                 </div>
@@ -652,6 +757,20 @@
                     <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
                 </svg>
                 <span>Leaderboard</span>
+            </button>
+            <button class="nav-item" data-nav="event">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                <span>Event</span>
+            </button>
+            <button class="nav-item" data-nav="collection">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                    <polyline points="2 17 12 22 22 17"/>
+                    <polyline points="2 12 12 17 22 12"/>
+                </svg>
+                <span>Collection</span>
             </button>
         </nav>
     </div>
@@ -786,6 +905,29 @@
                         <polyline points="9 22 9 12 15 12 15 22"/>
                     </svg>
                     <span id="btn-quit-text">Quit to Menu</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================= -->
+    <!-- EVENT PROMO POPUP MODAL                   -->
+    <!-- ========================================= -->
+    <div id="modal-event-popup" class="ios-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-sheet modal-sheet-sm">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <img src="Img/event-banner.png" alt="Event" class="event-popup-img">
+                <h2 class="modal-title">Limited Time Event</h2>
+                <p class="modal-subtitle">Event Background is now active. Complete the endurance challenge to unlock the exclusive Purple Night theme.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal btn-modal-primary" id="btn-go-event">
+                    <span>Go to Event</span>
+                </button>
+                <button class="btn-modal btn-modal-secondary" id="btn-close-event-popup">
+                    <span>Close</span>
                 </button>
             </div>
         </div>
