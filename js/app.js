@@ -1,18 +1,20 @@
 /**
  * ============================================================
- * CLICKFUN.IO - FRONTEND APPLICATION ENGINE
+ * CLICKFUN.IO - FRONTEND APPLICATION ENGINE v3.0
  * iOS Modern Design | Multi-Mode (60s & Endless) | Mock Fallback
  * Lightning Boost Skill | News Ticker | Unified Database Schema
+ * Event System | Skin Collection | Dynamic Theme Engine
  * ============================================================
  */
 
 const CONFIG = {
-    API_BASE_URL: 'https://script.google.com/macros/s/AKfycbyEw1249Gbi9-i_zhw-aqkwiE1wOHRQARzD40hmlaNSAHqxOwfjjsnNP_Jn22kA_EUPcQ/exec',
+    API_BASE_URL: 'https://script.google.com/macros/s/AKfycbz3mb-CXEEsTRJw2VogC0jqzfPmoWFcyPG04YjvrRPHJWghJI-VcMVfxD04oRoRKs_xCQ/exec',
     GAME_DURATION: 60,
     MAX_RETRIES: 5,
     INITIAL_RETRY_DELAY: 1000,
     RETRY_MULTIPLIER: 2,
     LEADERBOARD_REFRESH_INTERVAL: 8000,
+    EVENT_END_TIME: new Date('2026-07-17T21:23:00').getTime(),
     FLAGS: {
         'US': '\u{1F1FA}\u{1F1F8}', 'ID': '\u{1F1EE}\u{1F1E9}', 'GB': '\u{1F1EC}\u{1F1E7}',
         'JP': '\u{1F1EF}\u{1F1F5}', 'KR': '\u{1F1F0}\u{1F1F7}', 'DE': '\u{1F1E9}\u{1F1EA}',
@@ -138,15 +140,20 @@ const MockEngine = {
                     highScore: 0,
                     highestTime: 0,
                     highestClicks: 0,
-                    timestamp: ts()
+                    timestamp: ts(),
+                    ownedSkins: ['default'],
+                    activeSkin: 'default',
+                    eventClaimed: false,
+                    eventMissionCompleted: false,
+                    eventMissionFailed: false
                 };
                 this.users.push(user);
-                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: 0, highestTime: 0, highestClicks: 0 }};
+                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: 0, highestTime: 0, highestClicks: 0, ownedSkins: ['default'], activeSkin: 'default' }};
             }
             case 'login': {
                 const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase() && u.password === data.password);
                 if (!user) return { success: false, error: 'Invalid username or password', code: 'AUTH_FAILED' };
-                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: user.highScore, highestTime: user.highestTime, highestClicks: user.highestClicks }};
+                return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: user.highScore, highestTime: user.highestTime, highestClicks: user.highestClicks, ownedSkins: user.ownedSkins || ['default'], activeSkin: user.activeSkin || 'default' }};
             }
             case 'saveHighScore': {
                 const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
@@ -203,7 +210,51 @@ const MockEngine = {
                 return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: user.highScore, highestClicks: user.highestClicks, highestTime: user.highestTime, timestamp: user.timestamp }};
             }
             case 'getNews': {
-                return { success: true, newsText: 'Welcome to ClickFun.io v2.0! Lightning Boost is now live!', newsStatus: 'ON' };
+                return { success: true, newsText: 'Welcome to ClickFun.io v3.0! Events, Skins and Lightning Boost are now live!', newsStatus: 'ON' };
+            }
+            case 'getEventStatus': {
+                const now = new Date().getTime();
+                const eventEnd = CONFIG.EVENT_END_TIME;
+                const isActive = now < eventEnd;
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                return {
+                    success: true,
+                    eventActive: isActive,
+                    eventEndTime: eventEnd,
+                    claimed: user?.eventClaimed || false,
+                    missionCompleted: user?.eventMissionCompleted || false,
+                    missionFailed: user?.eventMissionFailed || false
+                };
+            }
+            case 'claimEventReward': {
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                if (!user) return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
+                if (user.eventClaimed) return { success: false, error: 'Already claimed', code: 'ALREADY_CLAIMED' };
+                const clicks = parseInt(data.proofClicks) || 0;
+                const duration = parseInt(data.proofDuration) || 0;
+                if (duration < 300 || clicks < 10000) {
+                    return { success: false, error: 'Mission requirements not met', code: 'MISSION_FAILED' };
+                }
+                user.eventClaimed = true;
+                if (!user.ownedSkins) user.ownedSkins = ['default'];
+                if (!user.ownedSkins.includes('dark_premium')) user.ownedSkins.push('dark_premium');
+                return { success: true, message: 'Reward claimed', ownedSkins: user.ownedSkins };
+            }
+            case 'getUserSkins': {
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                if (!user) return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
+                return {
+                    success: true,
+                    ownedSkins: user.ownedSkins || ['default'],
+                    activeSkin: user.activeSkin || 'default'
+                };
+            }
+            case 'setActiveSkin': {
+                const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
+                if (!user) return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
+                if (!user.ownedSkins?.includes(data.skinId)) return { success: false, error: 'Skin not owned', code: 'SKIN_NOT_OWNED' };
+                user.activeSkin = data.skinId;
+                return { success: true, activeSkin: data.skinId };
             }
             default:
                 return { success: false, error: 'Unknown action: ' + action, code: 'UNKNOWN_ACTION' };
@@ -220,7 +271,7 @@ const State = {
     currentView: 'loading',
     currentUser: null,
     currentSlide: 0,
-    totalSlides: 4,
+    totalSlides: 5,
     currentMode: '60s',
     gameActive: false,
     gamePaused: false,
@@ -243,6 +294,25 @@ const State = {
     skillMaxClicks: 500,
     newsText: '',
     newsStatus: 'OFF',
+    
+    // Event System
+    eventConfig: {
+        active: true,
+        endTime: CONFIG.EVENT_END_TIME,
+        requiredDuration: 300,
+        requiredClicks: 10000
+    },
+    eventClaimed: false,
+    eventMissionCompleted: false,
+    eventMissionFailed: false,
+    eventPopupDismissed: false,
+    missionTracking: false,
+    missionClicksAtEval: 0,
+    missionDuration: 0,
+    
+    // Skin Collection
+    ownedSkins: ['default'],
+    activeSkin: 'default',
 
     setUser(user) {
         this.currentUser = user;
@@ -251,6 +321,11 @@ const State = {
             highestClicks: user?.highestClicks || 0,
             highestTime: user?.highestTime || 0
         };
+        this.ownedSkins = user?.ownedSkins || ['default'];
+        this.activeSkin = user?.activeSkin || 'default';
+        this.eventClaimed = user?.eventClaimed || false;
+        this.eventMissionCompleted = user?.eventMissionCompleted || false;
+        this.eventMissionFailed = user?.eventMissionFailed || false;
     },
 
     clearUser() {
@@ -263,6 +338,13 @@ const State = {
         this.isSkillReady = false;
         this.isSkillActive = false;
         this.activeMultiplier = 1;
+        this.ownedSkins = ['default'];
+        this.activeSkin = 'default';
+        this.eventClaimed = false;
+        this.eventMissionCompleted = false;
+        this.eventMissionFailed = false;
+        this.eventPopupDismissed = false;
+        this.missionTracking = false;
         if (this.skillTimer) {
             clearInterval(this.skillTimer);
             this.skillTimer = null;
@@ -303,6 +385,8 @@ function cacheDOM() {
     DOM.previewRank = document.getElementById('preview-rank');
     DOM.sectionPlay = document.getElementById('section-play');
     DOM.sectionLeaderboard = document.getElementById('section-leaderboard');
+    DOM.sectionEvent = document.getElementById('section-event');
+    DOM.sectionCollection = document.getElementById('section-collection');
     DOM.navItems = document.querySelectorAll('.nav-item');
 
     DOM.modeSlides = document.getElementById('mode-slides');
@@ -329,6 +413,7 @@ function cacheDOM() {
 
     DOM.modalGameover = document.getElementById('modal-gameover');
     DOM.modalPause = document.getElementById('modal-pause');
+    DOM.modalEventPopup = document.getElementById('modal-event-popup');
     DOM.resultScore = document.getElementById('result-score');
     DOM.resultBest = document.getElementById('result-best');
     DOM.resultLabelPrimary = document.getElementById('result-label-primary');
@@ -341,6 +426,8 @@ function cacheDOM() {
     DOM.btnResume = document.getElementById('btn-resume');
     DOM.btnQuitGame = document.getElementById('btn-quit-game');
     DOM.btnQuitText = document.getElementById('btn-quit-text');
+    DOM.btnGoEvent = document.getElementById('btn-go-event');
+    DOM.btnCloseEventPopup = document.getElementById('btn-close-event-popup');
 
     DOM.lbModeTabs = document.querySelectorAll('.lb-mode-tab');
     DOM.lbModeIndicator = document.querySelector('.lb-mode-indicator');
@@ -356,6 +443,11 @@ function cacheDOM() {
     DOM.skillBoostContainer = document.getElementById('btn-skill-boost');
     DOM.skillRingProgress = document.getElementById('skill-ring-progress');
     DOM.skillIconLightning = document.getElementById('skill-icon-lightning');
+
+    DOM.eventCountdown = document.getElementById('event-countdown');
+    DOM.eventStatusText = document.getElementById('event-status-text');
+    DOM.btnClaimReward = document.getElementById('btn-claim-reward');
+    DOM.skinsGrid = document.getElementById('skins-grid');
 }
 
 /* ============================================
@@ -670,10 +762,15 @@ function setButtonLoading(btn, loading) {
    ============================================ */
 function enterDashboard() {
     switchView('dashboard');
+    applyTheme(State.activeSkin);
     updateDashboardUI();
     startLeaderboardRefresh();
+    startEventCountdown();
     fetchLeaderboard();
     fetchNews();
+    fetchEventStatus();
+    fetchUserSkins();
+    setTimeout(maybeShowEventPopup, 800);
 }
 
 function updateDashboardUI() {
@@ -770,19 +867,29 @@ function initLeaderboardTabs() {
 function initDashboard() {
     initModeSelector();
     initLeaderboardTabs();
+    initSkinToggles();
 
     DOM.navItems.forEach(item => {
         item.addEventListener('click', () => {
             const nav = item.dataset.nav;
             DOM.navItems.forEach(n => n.classList.toggle('active', n === item));
 
+            DOM.sectionPlay.classList.remove('active');
+            DOM.sectionLeaderboard.classList.remove('active');
+            DOM.sectionEvent.classList.remove('active');
+            DOM.sectionCollection.classList.remove('active');
+
             if (nav === 'play') {
                 DOM.sectionPlay.classList.add('active');
-                DOM.sectionLeaderboard.classList.remove('active');
             } else if (nav === 'leaderboard') {
-                DOM.sectionPlay.classList.remove('active');
                 DOM.sectionLeaderboard.classList.add('active');
                 fetchLeaderboard();
+            } else if (nav === 'event') {
+                DOM.sectionEvent.classList.add('active');
+                updateEventUI();
+            } else if (nav === 'collection') {
+                DOM.sectionCollection.classList.add('active');
+                updateCollectionUI();
             }
         });
     });
@@ -790,7 +897,9 @@ function initDashboard() {
     DOM.btnLogout.addEventListener('click', () => {
         State.clearUser();
         stopLeaderboardRefresh();
+        stopEventCountdown();
         clearForms();
+        applyTheme('default');
         switchView('auth');
         showToast('Logged out successfully', 'info');
     });
@@ -817,6 +926,23 @@ function initDashboard() {
         fetchLeaderboard();
     });
 
+    DOM.btnGoEvent?.addEventListener('click', () => {
+        closeModal(DOM.modalEventPopup);
+        DOM.navItems.forEach(n => n.classList.toggle('active', n.dataset.nav === 'event'));
+        DOM.sectionPlay.classList.remove('active');
+        DOM.sectionLeaderboard.classList.remove('active');
+        DOM.sectionCollection.classList.remove('active');
+        DOM.sectionEvent.classList.add('active');
+        updateEventUI();
+    });
+
+    DOM.btnCloseEventPopup?.addEventListener('click', () => {
+        State.eventPopupDismissed = true;
+        closeModal(DOM.modalEventPopup);
+    });
+
+    DOM.btnClaimReward?.addEventListener('click', claimEventReward);
+
     DOM.gameZone.addEventListener('mousedown', handleGameClick);
     DOM.gameZone.addEventListener('touchstart', handleGameClick, { passive: false });
 
@@ -837,6 +963,232 @@ function clearForms() {
     DOM.formLogin.reset();
     DOM.formRegister.reset();
     clearFormErrors();
+}
+
+/* ============================================
+   EVENT SYSTEM
+   ============================================ */
+let eventCountdownInterval = null;
+
+function startEventCountdown() {
+    if (eventCountdownInterval) clearInterval(eventCountdownInterval);
+    updateEventUI();
+    eventCountdownInterval = setInterval(() => {
+        if (State.currentView === 'dashboard') {
+            updateEventUI();
+        }
+    }, 1000);
+}
+
+function stopEventCountdown() {
+    if (eventCountdownInterval) {
+        clearInterval(eventCountdownInterval);
+        eventCountdownInterval = null;
+    }
+}
+
+function formatCountdown(ms) {
+    if (ms <= 0) return 'Event Ended';
+    const days = Math.floor(ms / 86400000);
+    const hours = Math.floor((ms % 86400000) / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    return `${hours}h ${minutes}m`;
+}
+
+function updateEventUI() {
+    if (!DOM.eventCountdown) return;
+    const now = Date.now();
+    const remaining = State.eventConfig.endTime - now;
+    const isActive = State.eventConfig.active && remaining > 0;
+
+    if (!isActive) {
+        DOM.eventCountdown.textContent = 'Event Ended';
+        DOM.sectionEvent?.classList.add('event-inactive');
+        const eventNav = document.querySelector('[data-nav="event"]');
+        if (eventNav) eventNav.style.display = 'none';
+    } else {
+        DOM.eventCountdown.textContent = formatCountdown(remaining);
+        const eventNav = document.querySelector('[data-nav="event"]');
+        if (eventNav) eventNav.style.display = 'flex';
+    }
+
+    const statusText = DOM.eventStatusText;
+    if (!statusText) return;
+
+    if (State.eventClaimed) {
+        statusText.textContent = 'Reward Claimed';
+        statusText.className = 'event-status-value status-claimed';
+        if (DOM.btnClaimReward) {
+            DOM.btnClaimReward.disabled = true;
+            DOM.btnClaimReward.querySelector('.btn-text').textContent = 'Already Claimed';
+        }
+    } else if (State.eventMissionCompleted) {
+        statusText.textContent = 'Completed - Claim Your Reward';
+        statusText.className = 'event-status-value status-complete';
+        if (DOM.btnClaimReward) {
+            DOM.btnClaimReward.disabled = false;
+            DOM.btnClaimReward.querySelector('.btn-text').textContent = 'Claim Reward';
+        }
+    } else if (State.eventMissionFailed) {
+        statusText.textContent = 'Mission Failed';
+        statusText.className = 'event-status-value status-failed';
+        if (DOM.btnClaimReward) {
+            DOM.btnClaimReward.disabled = true;
+            DOM.btnClaimReward.querySelector('.btn-text').textContent = 'Unavailable';
+        }
+    } else {
+        statusText.textContent = 'In Progress';
+        statusText.className = 'event-status-value status-progress';
+        if (DOM.btnClaimReward) {
+            DOM.btnClaimReward.disabled = true;
+            DOM.btnClaimReward.querySelector('.btn-text').textContent = 'Locked';
+        }
+    }
+}
+
+function maybeShowEventPopup() {
+    const now = Date.now();
+    const isActive = State.eventConfig.active && State.eventConfig.endTime > now;
+    if (isActive && !State.eventPopupDismissed && !State.eventClaimed) {
+        openModal(DOM.modalEventPopup);
+    }
+}
+
+async function fetchEventStatus() {
+    if (!State.currentUser) return;
+    try {
+        const result = await apiRequest('getEventStatus', { username: State.currentUser.username }, 'GET');
+        if (result.success) {
+            State.eventConfig.active = result.eventActive;
+            State.eventConfig.endTime = result.eventEndTime;
+            State.eventClaimed = result.claimed;
+            State.eventMissionCompleted = result.missionCompleted;
+            State.eventMissionFailed = result.missionFailed;
+            updateEventUI();
+        }
+    } catch (error) {
+        console.error('Failed to fetch event status:', error);
+    }
+}
+
+async function claimEventReward() {
+    if (!State.currentUser || !State.eventMissionCompleted || State.eventClaimed) return;
+    try {
+        const result = await apiRequest('claimEventReward', {
+            username: State.currentUser.username,
+            eventId: 'event_background_001',
+            proofClicks: State.missionClicksAtEval,
+            proofDuration: State.missionDuration
+        });
+        if (result.success) {
+            State.eventClaimed = true;
+            if (!State.ownedSkins.includes('dark_premium')) {
+                State.ownedSkins.push('dark_premium');
+            }
+            showToast('Purple Night theme unlocked!', 'success');
+            updateCollectionUI();
+            updateEventUI();
+        } else {
+            showToast(result.error || 'Failed to claim reward', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to claim reward. Please try again.', 'error');
+    }
+}
+
+function evaluateEventMission() {
+    if (!State.missionTracking) return;
+    State.missionTracking = false;
+    State.missionDuration = State.timerValue;
+    State.missionClicksAtEval = State.clickCount;
+
+    if (State.clickCount >= 10000) {
+        State.eventMissionCompleted = true;
+        showToast('Mission complete! Claim your Purple Night theme.', 'success');
+    } else {
+        State.eventMissionFailed = true;
+        showToast('Mission failed. You needed 10,000 clicks in 5 minutes.', 'error');
+    }
+    updateEventUI();
+}
+
+/* ============================================
+   SKIN COLLECTION SYSTEM
+   ============================================ */
+function initSkinToggles() {
+    document.querySelectorAll('.btn-skin-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const skinId = e.target.dataset.skin;
+            if (State.ownedSkins.includes(skinId) && State.activeSkin !== skinId) {
+                setActiveSkin(skinId);
+            }
+        });
+    });
+}
+
+function updateCollectionUI() {
+    const cards = document.querySelectorAll('.skin-card');
+    cards.forEach(card => {
+        const skinId = card.dataset.skin;
+        const btn = card.querySelector('.btn-skin-toggle');
+        const isOwned = State.ownedSkins.includes(skinId);
+        const isActive = State.activeSkin === skinId;
+
+        card.classList.toggle('locked', !isOwned);
+        card.classList.toggle('active', isActive);
+
+        if (!isOwned) {
+            btn.disabled = true;
+            btn.textContent = 'Locked';
+            btn.classList.remove('active');
+        } else if (isActive) {
+            btn.disabled = false;
+            btn.textContent = 'Active';
+            btn.classList.add('active');
+        } else {
+            btn.disabled = false;
+            btn.textContent = 'Equip';
+            btn.classList.remove('active');
+        }
+    });
+}
+
+function applyTheme(skinId) {
+    if (skinId === 'dark_premium') {
+        document.documentElement.setAttribute('data-theme', 'dark_premium');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+}
+
+async function setActiveSkin(skinId) {
+    if (!State.ownedSkins.includes(skinId)) return;
+    State.activeSkin = skinId;
+    applyTheme(skinId);
+    updateCollectionUI();
+    if (State.currentUser) {
+        try {
+            await apiRequest('setActiveSkin', { username: State.currentUser.username, skinId });
+        } catch (error) {
+            console.error('Failed to save active skin:', error);
+        }
+    }
+}
+
+async function fetchUserSkins() {
+    if (!State.currentUser) return;
+    try {
+        const result = await apiRequest('getUserSkins', { username: State.currentUser.username }, 'GET');
+        if (result.success) {
+            State.ownedSkins = result.ownedSkins || ['default'];
+            State.activeSkin = result.activeSkin || 'default';
+            applyTheme(State.activeSkin);
+            updateCollectionUI();
+        }
+    } catch (error) {
+        console.error('Failed to fetch user skins:', error);
+    }
 }
 
 /* ============================================
@@ -973,12 +1325,14 @@ function renderLeaderboardEndless() {
                            '#' + rank;
 
         return `
-            <div class="lb-row ${isCurrentUser ? 'current-user' : ''}" style="animation-delay: ${index * 0.05}s">
+            <div class="lb-row endless-row ${isCurrentUser ? 'current-user' : ''}" style="animation-delay: ${index * 0.05}s">
                 <span class="lb-col-rank">${rankDisplay}</span>
                 <span class="lb-col-flag">${flag}</span>
                 <span class="lb-col-user">${escapeHtml(entry.username)}</span>
-                <span class="lb-col-time">${timeStr}</span>
-                <span class="lb-col-score">${(entry.highScore || 0).toLocaleString()}</span>
+                <div class="lb-col-meta">
+                    <span class="lb-meta-time">${timeStr}</span>
+                    <span class="lb-meta-clicks">${(entry.highScore || 0).toLocaleString()} clicks</span>
+                </div>
             </div>
         `;
     }).join('');
@@ -1108,8 +1462,12 @@ function startGame() {
         DOM.gameStopwatch.textContent = '00:00:00';
         DOM.timerRingContainer.style.display = 'none';
         DOM.stopwatchDisplay.style.display = 'flex';
-        DOM.gameHighscoreLabel.innerHTML = `Best: <strong>${State.endlessStats.highestClicks.toLocaleString()}</strong> clicks · <strong>${formatTime(State.endlessStats.highestTime)}</strong>`;
+        DOM.gameHighscoreLabel.innerHTML = `Best: <strong>${State.endlessStats.highestClicks.toLocaleString()}</strong> clicks / <strong>${formatTime(State.endlessStats.highestTime)}</strong>`;
         DOM.gameZoneHint.textContent = 'Tap anywhere to click! Tap pause to save your run.';
+        
+        if (State.eventConfig.active && !State.eventClaimed && !State.eventMissionFailed) {
+            State.missionTracking = true;
+        }
     }
 
     DOM.gameArena.classList.add('active');
@@ -1143,6 +1501,10 @@ function startTimer() {
         } else {
             State.timerValue++;
             DOM.gameStopwatch.textContent = formatTime(State.timerValue);
+            
+            if (State.missionTracking && State.timerValue >= 300) {
+                evaluateEventMission();
+            }
         }
     }, 1000);
 }
@@ -1245,6 +1607,7 @@ function quitGame() {
 
     State.gameActive = false;
     State.gamePaused = false;
+    State.missionTracking = false;
     if (State.timerInterval) clearInterval(State.timerInterval);
     deactivateSkillBoost();
     closeModal(DOM.modalPause);
