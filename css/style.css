@@ -1,5 +1,5 @@
 /* ============================================
-   CLICKFUN.IO - iOS MODERN DESIGN SYSTEM
+   CLICKFUN.IO v4.0 - iOS MODERN DESIGN SYSTEM
    ============================================ */
 
 /* ---- CSS Variables ---- */
@@ -65,6 +65,36 @@ html[data-theme="dark_premium"] {
     --color-orange: #ff9f0a;
     --color-green: #30d158;
     --color-elevated: #3d2b5e;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.15);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.2);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3);
+    --shadow-xl: 0 24px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.4);
+}
+
+/* ---- Golden Touch Theme Override ---- */
+html[data-theme="golden_touch"] {
+    --color-bg: #1a1200;
+    --color-surface: #2d2400;
+    --color-surface-elevated: #3d3000;
+    --color-text-primary: #fff8e1;
+    --color-text-secondary: #d4c4a8;
+    --color-text-tertiary: #a89878;
+    --color-border: #5a4a20;
+    --color-border-light: #4a3a10;
+    --color-accent: #ffb800;
+    --color-accent-light: rgba(255, 184, 0, 0.15);
+    --color-success: #30d158;
+    --color-success-light: rgba(48, 209, 88, 0.15);
+    --color-warning: #ff9f0a;
+    --color-warning-light: rgba(255, 159, 10, 0.15);
+    --color-danger: #ff453a;
+    --color-danger-light: rgba(255, 69, 58, 0.15);
+    --color-purple: #bf5af2;
+    --color-pink: #ff375f;
+    --color-teal: #64d2ff;
+    --color-orange: #ff9f0a;
+    --color-green: #30d158;
+    --color-elevated: #3d3000;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.15);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.2);
     --shadow-lg: 0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3);
@@ -1608,7 +1638,15 @@ body {
 }
 
 .skin-preview-gold {
-    background: linear-gradient(135deg, #FFF8E1 0%, #FFE082 100%);
+    background: linear-gradient(135deg, #FFF8E1 0%, #FFE082 50%, #D4AF37 100%);
+}
+
+.skin-preview-merdeka {
+    background: linear-gradient(135deg, #cc0000 0%, #ffffff 100%);
+}
+
+.skin-preview-summer {
+    background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
 }
 
 .skin-info h3 {
@@ -1742,6 +1780,113 @@ body {
 
 .nav-item:active {
     transform: scale(0.95);
+}
+
+/* ============================================
+   VIEW 6: MAINTENANCE PAGE
+   ============================================ */
+#view-maintenance {
+    background: var(--color-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+
+.maintenance-content {
+    width: 100%;
+    max-width: 400px;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 24px;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.maintenance-icon {
+    width: 64px;
+    height: 64px;
+    color: var(--color-warning);
+    animation: pulseScale 2s ease-in-out infinite;
+}
+
+.maintenance-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.maintenance-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+}
+
+.maintenance-message {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.maintenance-countdown-block {
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    width: 100%;
+    border: 1px solid var(--color-border-light);
+}
+
+.maintenance-countdown-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.maintenance-countdown-value {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-warning);
+    animation: pulseDot 2s ease-in-out infinite;
+}
+
+.maintenance-times {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.maintenance-time-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.maintenance-time-row:last-child {
+    border-bottom: none;
+}
+
+.maintenance-time-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.maintenance-time-value {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
 }
 
 /* ============================================
