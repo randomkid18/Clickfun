@@ -1,20 +1,22 @@
 /**
  * ============================================================
- * CLICKFUN.IO - FRONTEND APPLICATION ENGINE v3.0
+ * CLICKFUN.IO - FRONTEND APPLICATION ENGINE v4.0
  * iOS Modern Design | Multi-Mode (60s & Endless) | Mock Fallback
  * Lightning Boost Skill | News Ticker | Unified Database Schema
  * Event System | Skin Collection | Dynamic Theme Engine
+ * localStorage Session | Maintenance Mode | Golden Touch Event
  * ============================================================
  */
 
 const CONFIG = {
-    API_BASE_URL: 'https://script.google.com/macros/s/AKfycbz3mb-CXEEsTRJw2VogC0jqzfPmoWFcyPG04YjvrRPHJWghJI-VcMVfxD04oRoRKs_xCQ/exec',
+    API_BASE_URL: 'https://script.google.com/macros/s/AKfycbyfUIAlALTyGKqMeq76CCAKxdq62x5zLW5IbJc7d9rHp5O6VVKB03ft6xqyaN8oAjxVtg/exec',
     GAME_DURATION: 60,
     MAX_RETRIES: 5,
     INITIAL_RETRY_DELAY: 1000,
     RETRY_MULTIPLIER: 2,
     LEADERBOARD_REFRESH_INTERVAL: 8000,
-    EVENT_END_TIME: new Date('2026-07-17T21:23:00').getTime(),
+    EVENT_END_TIME_PURPLE: new Date('2026-08-12T00:00:00+07:00').getTime(),
+    EVENT_END_TIME_GOLDEN: new Date('2026-09-04T00:00:00+07:00').getTime(),
     FLAGS: {
         'US': '\u{1F1FA}\u{1F1F8}', 'ID': '\u{1F1EE}\u{1F1E9}', 'GB': '\u{1F1EC}\u{1F1E7}',
         'JP': '\u{1F1EF}\u{1F1F5}', 'KR': '\u{1F1F0}\u{1F1F7}', 'DE': '\u{1F1E9}\u{1F1EA}',
@@ -92,6 +94,50 @@ const CONFIG = {
 };
 
 /* ============================================
+   LOCALSTORAGE UTILITIES (NEW v4.0)
+   ============================================ */
+const Storage = {
+    KEY: 'clickfun_session',
+    
+    save(user) {
+        const data = {
+            username: user.username,
+            countryFlag: user.countryFlag,
+            highScore: user.highScore || 0,
+            highestClicks: user.highestClicks || 0,
+            highestTime: user.highestTime || 0,
+            ownedSkins: user.ownedSkins || ['default'],
+            activeSkin: user.activeSkin || 'default',
+            eventPopupDismissed: State.eventPopupDismissed || false,
+            eventClaimedPurple: State.eventClaimed || false,
+            eventClaimedGolden: State.eventClaimedGolden || false,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(this.KEY, JSON.stringify(data));
+    },
+
+    load() {
+        try {
+            const raw = localStorage.getItem(this.KEY);
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    },
+
+    clear() {
+        localStorage.removeItem(this.KEY);
+    },
+
+    updatePartial(updates) {
+        const data = this.load() || {};
+        Object.assign(data, updates);
+        localStorage.setItem(this.KEY, JSON.stringify(data));
+    }
+};
+
+/* ============================================
    MOCK API ENGINE (Fallback)
    ============================================ */
 const MockEngine = {
@@ -144,6 +190,7 @@ const MockEngine = {
                     ownedSkins: ['default'],
                     activeSkin: 'default',
                     eventClaimed: false,
+                    eventClaimedGolden: false,
                     eventMissionCompleted: false,
                     eventMissionFailed: false
                 };
@@ -210,35 +257,54 @@ const MockEngine = {
                 return { success: true, user: { username: user.username, countryFlag: user.countryFlag, highScore: user.highScore, highestClicks: user.highestClicks, highestTime: user.highestTime, timestamp: user.timestamp }};
             }
             case 'getNews': {
-                return { success: true, newsText: 'Welcome to ClickFun.io v3.0! Events, Skins and Lightning Boost are now live!', newsStatus: 'ON' };
+                return { success: true, newsText: 'Welcome to ClickFun.io v4.0! Events, Skins and Lightning Boost are now live!', newsStatus: 'ON' };
             }
             case 'getEventStatus': {
                 const now = new Date().getTime();
-                const eventEnd = CONFIG.EVENT_END_TIME;
-                const isActive = now < eventEnd;
+                const eventEndPurple = CONFIG.EVENT_END_TIME_PURPLE;
+                const eventEndGolden = CONFIG.EVENT_END_TIME_GOLDEN;
+                const isActivePurple = now < eventEndPurple;
+                const isActiveGolden = now < eventEndGolden;
                 const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
                 return {
                     success: true,
-                    eventActive: isActive,
-                    eventEndTime: eventEnd,
+                    eventActive: isActivePurple,
+                    eventEndTime: eventEndPurple,
                     claimed: user?.eventClaimed || false,
                     missionCompleted: user?.eventMissionCompleted || false,
-                    missionFailed: user?.eventMissionFailed || false
+                    missionFailed: user?.eventMissionFailed || false,
+                    goldenActive: isActiveGolden,
+                    goldenEndTime: eventEndGolden,
+                    goldenClaimed: user?.eventClaimedGolden || false
                 };
             }
             case 'claimEventReward': {
                 const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
                 if (!user) return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
-                if (user.eventClaimed) return { success: false, error: 'Already claimed', code: 'ALREADY_CLAIMED' };
-                const clicks = parseInt(data.proofClicks) || 0;
-                const duration = parseInt(data.proofDuration) || 0;
-                if (duration < 300 || clicks < 10000) {
-                    return { success: false, error: 'Mission requirements not met', code: 'MISSION_FAILED' };
+                const eventId = data.eventId || 'event_background_001';
+                
+                if (eventId === 'event_golden_001') {
+                    if (user.eventClaimedGolden) return { success: false, error: 'Already claimed', code: 'ALREADY_CLAIMED' };
+                    const clicks = parseInt(data.proofClicks) || 0;
+                    if (clicks < 5000) {
+                        return { success: false, error: 'Mission requirements not met', code: 'MISSION_FAILED' };
+                    }
+                    user.eventClaimedGolden = true;
+                    if (!user.ownedSkins) user.ownedSkins = ['default'];
+                    if (!user.ownedSkins.includes('golden_touch')) user.ownedSkins.push('golden_touch');
+                    return { success: true, message: 'Reward claimed', ownedSkins: user.ownedSkins };
+                } else {
+                    if (user.eventClaimed) return { success: false, error: 'Already claimed', code: 'ALREADY_CLAIMED' };
+                    const clicks = parseInt(data.proofClicks) || 0;
+                    const duration = parseInt(data.proofDuration) || 0;
+                    if (duration < 300 || clicks < 10000) {
+                        return { success: false, error: 'Mission requirements not met', code: 'MISSION_FAILED' };
+                    }
+                    user.eventClaimed = true;
+                    if (!user.ownedSkins) user.ownedSkins = ['default'];
+                    if (!user.ownedSkins.includes('dark_premium')) user.ownedSkins.push('dark_premium');
+                    return { success: true, message: 'Reward claimed', ownedSkins: user.ownedSkins };
                 }
-                user.eventClaimed = true;
-                if (!user.ownedSkins) user.ownedSkins = ['default'];
-                if (!user.ownedSkins.includes('dark_premium')) user.ownedSkins.push('dark_premium');
-                return { success: true, message: 'Reward claimed', ownedSkins: user.ownedSkins };
             }
             case 'getUserSkins': {
                 const user = this.users.find(u => u.username.toLowerCase() === (data.username || '').toLowerCase());
@@ -255,6 +321,9 @@ const MockEngine = {
                 if (!user.ownedSkins?.includes(data.skinId)) return { success: false, error: 'Skin not owned', code: 'SKIN_NOT_OWNED' };
                 user.activeSkin = data.skinId;
                 return { success: true, activeSkin: data.skinId };
+            }
+            case 'getWebsiteStatus': {
+                return { success: true, status: 'active', message: 'System operational', startTime: '', endTime: '' };
             }
             default:
                 return { success: false, error: 'Unknown action: ' + action, code: 'UNKNOWN_ACTION' };
@@ -298,7 +367,7 @@ const State = {
     // Event System
     eventConfig: {
         active: true,
-        endTime: CONFIG.EVENT_END_TIME,
+        endTime: CONFIG.EVENT_END_TIME_PURPLE,
         requiredDuration: 300,
         requiredClicks: 10000
     },
@@ -309,10 +378,29 @@ const State = {
     missionTracking: false,
     missionClicksAtEval: 0,
     missionDuration: 0,
+
+    // Golden Touch Event
+    goldenConfig: {
+        active: true,
+        endTime: CONFIG.EVENT_END_TIME_GOLDEN,
+        requiredClicks: 5000
+    },
+    goldenClaimed: false,
+    goldenMissionCompleted: false,
+    goldenMissionFailed: false,
+    goldenTracking: false,
     
     // Skin Collection
     ownedSkins: ['default'],
     activeSkin: 'default',
+
+    // Maintenance
+    maintenance: {
+        active: false,
+        message: '',
+        startTime: '',
+        endTime: ''
+    },
 
     setUser(user) {
         this.currentUser = user;
@@ -326,6 +414,7 @@ const State = {
         this.eventClaimed = user?.eventClaimed || false;
         this.eventMissionCompleted = user?.eventMissionCompleted || false;
         this.eventMissionFailed = user?.eventMissionFailed || false;
+        this.goldenClaimed = user?.eventClaimedGolden || false;
     },
 
     clearUser() {
@@ -345,6 +434,10 @@ const State = {
         this.eventMissionFailed = false;
         this.eventPopupDismissed = false;
         this.missionTracking = false;
+        this.goldenClaimed = false;
+        this.goldenMissionCompleted = false;
+        this.goldenMissionFailed = false;
+        this.goldenTracking = false;
         if (this.skillTimer) {
             clearInterval(this.skillTimer);
             this.skillTimer = null;
@@ -362,6 +455,7 @@ function cacheDOM() {
     DOM.viewOnboard = document.getElementById('view-onboard');
     DOM.viewAuth = document.getElementById('view-auth');
     DOM.viewDashboard = document.getElementById('view-dashboard');
+    DOM.viewMaintenance = document.getElementById('view-maintenance');
 
     DOM.onboardSlides = document.getElementById('onboard-slides');
     DOM.onboardDots = document.getElementById('onboard-dots');
@@ -447,14 +541,22 @@ function cacheDOM() {
     DOM.eventCountdown = document.getElementById('event-countdown');
     DOM.eventStatusText = document.getElementById('event-status-text');
     DOM.btnClaimReward = document.getElementById('btn-claim-reward');
+    DOM.eventCountdownGolden = document.getElementById('event-countdown-golden');
+    DOM.eventStatusTextGolden = document.getElementById('event-status-text-golden');
+    DOM.btnClaimRewardGolden = document.getElementById('btn-claim-reward-golden');
     DOM.skinsGrid = document.getElementById('skins-grid');
+
+    DOM.maintenanceMessage = document.getElementById('maintenance-message');
+    DOM.maintenanceCountdown = document.getElementById('maintenance-countdown');
+    DOM.maintenanceStart = document.getElementById('maintenance-start');
+    DOM.maintenanceEnd = document.getElementById('maintenance-end');
 }
 
 /* ============================================
    VIEW NAVIGATION
    ============================================ */
 function switchView(viewName) {
-    const views = ['view-loading', 'view-onboard', 'view-auth', 'view-dashboard'];
+    const views = ['view-loading', 'view-onboard', 'view-auth', 'view-dashboard', 'view-maintenance'];
     views.forEach(v => {
         const el = document.getElementById(v);
         if (el) el.classList.remove('active');
@@ -541,12 +643,137 @@ async function apiRequest(action, data = {}, method = 'POST') {
 }
 
 /* ============================================
+   MAINTENANCE MODE (NEW v4.0)
+   ============================================ */
+let maintenanceInterval = null;
+
+async function checkWebsiteStatus() {
+    try {
+        const result = await apiRequest('getWebsiteStatus', {}, 'GET');
+        if (result.success) {
+            State.maintenance.active = result.status === 'maintenance';
+            State.maintenance.message = result.message || 'We are currently performing scheduled maintenance. Please check back later.';
+            State.maintenance.startTime = result.startTime || '';
+            State.maintenance.endTime = result.endTime || '';
+            return result;
+        }
+    } catch (error) {
+        console.error('Failed to check website status:', error);
+    }
+    return { status: 'active' };
+}
+
+function showMaintenancePage() {
+    switchView('maintenance');
+    if (DOM.maintenanceMessage) {
+        DOM.maintenanceMessage.textContent = State.maintenance.message;
+    }
+    if (DOM.maintenanceStart && State.maintenance.startTime) {
+        DOM.maintenanceStart.textContent = formatWibTime(State.maintenance.startTime);
+    }
+    if (DOM.maintenanceEnd && State.maintenance.endTime) {
+        DOM.maintenanceEnd.textContent = formatWibTime(State.maintenance.endTime);
+    }
+    updateMaintenanceCountdown();
+    if (maintenanceInterval) clearInterval(maintenanceInterval);
+    maintenanceInterval = setInterval(() => {
+        updateMaintenanceCountdown();
+        const now = Date.now();
+        const end = new Date(State.maintenance.endTime).getTime();
+        if (now >= end) {
+            clearInterval(maintenanceInterval);
+            location.reload();
+        }
+    }, 1000);
+}
+
+function formatWibTime(isoString) {
+    if (!isoString) return '--';
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} WIB`;
+}
+
+function updateMaintenanceCountdown() {
+    if (!DOM.maintenanceCountdown) return;
+    const end = new Date(State.maintenance.endTime).getTime();
+    const now = Date.now();
+    const remaining = end - now;
+    if (remaining <= 0) {
+        DOM.maintenanceCountdown.textContent = '00:00:00';
+        return;
+    }
+    const h = Math.floor(remaining / 3600000).toString().padStart(2, '0');
+    const m = Math.floor((remaining % 3600000) / 60000).toString().padStart(2, '0');
+    const s = Math.floor((remaining % 60000) / 1000).toString().padStart(2, '0');
+    DOM.maintenanceCountdown.textContent = `${h}:${m}:${s}`;
+}
+
+/* ============================================
    VIEW 1: LOADING SCREEN
    ============================================ */
 function initLoadingScreen() {
     setTimeout(() => {
-        switchView('onboard');
+        proceedAfterLoading();
     }, 2500);
+}
+
+async function proceedAfterLoading() {
+    const status = await checkWebsiteStatus();
+    const now = Date.now();
+    const endTime = new Date(State.maintenance.endTime).getTime();
+
+    if (State.maintenance.active && now < endTime) {
+        showMaintenancePage();
+        return;
+    }
+
+    const session = Storage.load();
+    if (session && session.username) {
+        // Validate session silently
+        try {
+            const result = await apiRequest('getUserStats', { username: session.username }, 'GET');
+            if (result.success) {
+                const user = {
+                    username: result.user.username,
+                    countryFlag: result.user.countryFlag,
+                    highScore: result.user.highScore,
+                    highestClicks: result.user.highestClicks,
+                    highestTime: result.user.highestTime,
+                    ownedSkins: session.ownedSkins || ['default'],
+                    activeSkin: session.activeSkin || 'default',
+                    eventClaimed: session.eventClaimedPurple || false,
+                    eventClaimedGolden: session.eventClaimedGolden || false
+                };
+                State.setUser(user);
+                State.eventPopupDismissed = session.eventPopupDismissed || false;
+                showToast('Welcome back, ' + user.username + '!', 'success');
+                enterDashboard();
+                return;
+            }
+        } catch (e) {
+            console.warn('Session validation failed, using cached data');
+        }
+        // Offline fallback
+        const user = {
+            username: session.username,
+            countryFlag: session.countryFlag || 'ID',
+            highScore: session.highScore || 0,
+            highestClicks: session.highestClicks || 0,
+            highestTime: session.highestTime || 0,
+            ownedSkins: session.ownedSkins || ['default'],
+            activeSkin: session.activeSkin || 'default',
+            eventClaimed: session.eventClaimedPurple || false,
+            eventClaimedGolden: session.eventClaimedGolden || false
+        };
+        State.setUser(user);
+        State.eventPopupDismissed = session.eventPopupDismissed || false;
+        showToast('Playing in offline mode', 'warning');
+        enterDashboard();
+        return;
+    }
+
+    switchView('onboard');
 }
 
 /* ============================================
@@ -679,6 +906,7 @@ function initAuth() {
             const result = await apiRequest('login', { username, password });
             if (result.success) {
                 State.setUser(result.user);
+                Storage.save(result.user);
                 showToast('Welcome back, ' + username + '!', 'success');
                 enterDashboard();
             } else {
@@ -714,6 +942,7 @@ function initAuth() {
             const result = await apiRequest('register', { username, password, countryFlag: country });
             if (result.success) {
                 State.setUser(result.user);
+                Storage.save(result.user);
                 showToast('Account created successfully!', 'success');
                 enterDashboard();
             } else {
@@ -887,6 +1116,7 @@ function initDashboard() {
             } else if (nav === 'event') {
                 DOM.sectionEvent.classList.add('active');
                 updateEventUI();
+                updateGoldenEventUI();
             } else if (nav === 'collection') {
                 DOM.sectionCollection.classList.add('active');
                 updateCollectionUI();
@@ -896,6 +1126,7 @@ function initDashboard() {
 
     DOM.btnLogout.addEventListener('click', () => {
         State.clearUser();
+        Storage.clear();
         stopLeaderboardRefresh();
         stopEventCountdown();
         clearForms();
@@ -934,14 +1165,17 @@ function initDashboard() {
         DOM.sectionCollection.classList.remove('active');
         DOM.sectionEvent.classList.add('active');
         updateEventUI();
+        updateGoldenEventUI();
     });
 
     DOM.btnCloseEventPopup?.addEventListener('click', () => {
         State.eventPopupDismissed = true;
+        Storage.updatePartial({ eventPopupDismissed: true });
         closeModal(DOM.modalEventPopup);
     });
 
     DOM.btnClaimReward?.addEventListener('click', claimEventReward);
+    DOM.btnClaimRewardGolden?.addEventListener('click', claimGoldenReward);
 
     DOM.gameZone.addEventListener('mousedown', handleGameClick);
     DOM.gameZone.addEventListener('touchstart', handleGameClick, { passive: false });
@@ -973,9 +1207,11 @@ let eventCountdownInterval = null;
 function startEventCountdown() {
     if (eventCountdownInterval) clearInterval(eventCountdownInterval);
     updateEventUI();
+    updateGoldenEventUI();
     eventCountdownInterval = setInterval(() => {
         if (State.currentView === 'dashboard') {
             updateEventUI();
+            updateGoldenEventUI();
         }
     }, 1000);
 }
@@ -1005,12 +1241,8 @@ function updateEventUI() {
     if (!isActive) {
         DOM.eventCountdown.textContent = 'Event Ended';
         DOM.sectionEvent?.classList.add('event-inactive');
-        const eventNav = document.querySelector('[data-nav="event"]');
-        if (eventNav) eventNav.style.display = 'none';
     } else {
         DOM.eventCountdown.textContent = formatCountdown(remaining);
-        const eventNav = document.querySelector('[data-nav="event"]');
-        if (eventNav) eventNav.style.display = 'flex';
     }
 
     const statusText = DOM.eventStatusText;
@@ -1047,6 +1279,52 @@ function updateEventUI() {
     }
 }
 
+function updateGoldenEventUI() {
+    if (!DOM.eventCountdownGolden) return;
+    const now = Date.now();
+    const remaining = State.goldenConfig.endTime - now;
+    const isActive = State.goldenConfig.active && remaining > 0;
+
+    if (!isActive) {
+        DOM.eventCountdownGolden.textContent = 'Event Ended';
+    } else {
+        DOM.eventCountdownGolden.textContent = formatCountdown(remaining);
+    }
+
+    const statusText = DOM.eventStatusTextGolden;
+    if (!statusText) return;
+
+    if (State.goldenClaimed) {
+        statusText.textContent = 'Reward Claimed';
+        statusText.className = 'event-status-value status-claimed';
+        if (DOM.btnClaimRewardGolden) {
+            DOM.btnClaimRewardGolden.disabled = true;
+            DOM.btnClaimRewardGolden.querySelector('.btn-text').textContent = 'Already Claimed';
+        }
+    } else if (State.goldenMissionCompleted) {
+        statusText.textContent = 'Completed - Claim Your Reward';
+        statusText.className = 'event-status-value status-complete';
+        if (DOM.btnClaimRewardGolden) {
+            DOM.btnClaimRewardGolden.disabled = false;
+            DOM.btnClaimRewardGolden.querySelector('.btn-text').textContent = 'Claim Reward';
+        }
+    } else if (State.goldenMissionFailed) {
+        statusText.textContent = 'Mission Failed';
+        statusText.className = 'event-status-value status-failed';
+        if (DOM.btnClaimRewardGolden) {
+            DOM.btnClaimRewardGolden.disabled = true;
+            DOM.btnClaimRewardGolden.querySelector('.btn-text').textContent = 'Unavailable';
+        }
+    } else {
+        statusText.textContent = 'In Progress';
+        statusText.className = 'event-status-value status-progress';
+        if (DOM.btnClaimRewardGolden) {
+            DOM.btnClaimRewardGolden.disabled = true;
+            DOM.btnClaimRewardGolden.querySelector('.btn-text').textContent = 'Locked';
+        }
+    }
+}
+
 function maybeShowEventPopup() {
     const now = Date.now();
     const isActive = State.eventConfig.active && State.eventConfig.endTime > now;
@@ -1065,7 +1343,11 @@ async function fetchEventStatus() {
             State.eventClaimed = result.claimed;
             State.eventMissionCompleted = result.missionCompleted;
             State.eventMissionFailed = result.missionFailed;
+            State.goldenConfig.active = result.goldenActive;
+            State.goldenConfig.endTime = result.goldenEndTime;
+            State.goldenClaimed = result.goldenClaimed;
             updateEventUI();
+            updateGoldenEventUI();
         }
     } catch (error) {
         console.error('Failed to fetch event status:', error);
@@ -1086,9 +1368,35 @@ async function claimEventReward() {
             if (!State.ownedSkins.includes('dark_premium')) {
                 State.ownedSkins.push('dark_premium');
             }
+            Storage.updatePartial({ ownedSkins: State.ownedSkins, eventClaimedPurple: true });
             showToast('Purple Night theme unlocked!', 'success');
             updateCollectionUI();
             updateEventUI();
+        } else {
+            showToast(result.error || 'Failed to claim reward', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to claim reward. Please try again.', 'error');
+    }
+}
+
+async function claimGoldenReward() {
+    if (!State.currentUser || !State.goldenMissionCompleted || State.goldenClaimed) return;
+    try {
+        const result = await apiRequest('claimEventReward', {
+            username: State.currentUser.username,
+            eventId: 'event_golden_001',
+            proofClicks: State.clickCount
+        });
+        if (result.success) {
+            State.goldenClaimed = true;
+            if (!State.ownedSkins.includes('golden_touch')) {
+                State.ownedSkins.push('golden_touch');
+            }
+            Storage.updatePartial({ ownedSkins: State.ownedSkins, eventClaimedGolden: true });
+            showToast('Golden Touch theme unlocked!', 'success');
+            updateCollectionUI();
+            updateGoldenEventUI();
         } else {
             showToast(result.error || 'Failed to claim reward', 'error');
         }
@@ -1111,6 +1419,19 @@ function evaluateEventMission() {
         showToast('Mission failed. You needed 10,000 clicks in 5 minutes.', 'error');
     }
     updateEventUI();
+}
+
+function evaluateGoldenMission() {
+    if (!State.goldenTracking) return;
+    State.goldenTracking = false;
+    if (State.clickCount >= 5000) {
+        State.goldenMissionCompleted = true;
+        showToast('Golden Touch mission complete! Claim your reward.', 'success');
+    } else {
+        State.goldenMissionFailed = true;
+        showToast('Golden Touch mission failed. You needed 5,000 clicks.', 'error');
+    }
+    updateGoldenEventUI();
 }
 
 /* ============================================
@@ -1157,6 +1478,8 @@ function updateCollectionUI() {
 function applyTheme(skinId) {
     if (skinId === 'dark_premium') {
         document.documentElement.setAttribute('data-theme', 'dark_premium');
+    } else if (skinId === 'golden_touch') {
+        document.documentElement.setAttribute('data-theme', 'golden_touch');
     } else {
         document.documentElement.removeAttribute('data-theme');
     }
@@ -1167,6 +1490,7 @@ async function setActiveSkin(skinId) {
     State.activeSkin = skinId;
     applyTheme(skinId);
     updateCollectionUI();
+    Storage.updatePartial({ activeSkin: skinId });
     if (State.currentUser) {
         try {
             await apiRequest('setActiveSkin', { username: State.currentUser.username, skinId });
@@ -1457,6 +1781,10 @@ function startGame() {
         updateTimerRing(CONFIG.GAME_DURATION);
         DOM.gameHighscoreLabel.innerHTML = `Personal Best: <strong>${State.personalBest.toLocaleString()}</strong>`;
         DOM.gameZoneHint.textContent = 'Tap anywhere to click!';
+        
+        if (State.goldenConfig.active && !State.goldenClaimed && !State.goldenMissionFailed) {
+            State.goldenTracking = true;
+        }
     } else {
         State.timerValue = 0;
         DOM.gameStopwatch.textContent = '00:00:00';
@@ -1608,6 +1936,7 @@ function quitGame() {
     State.gameActive = false;
     State.gamePaused = false;
     State.missionTracking = false;
+    State.goldenTracking = false;
     if (State.timerInterval) clearInterval(State.timerInterval);
     deactivateSkillBoost();
     closeModal(DOM.modalPause);
@@ -1628,6 +1957,18 @@ async function endGame() {
         if (isNewBest) {
             State.personalBest = State.clickCount;
             DOM.previewHighscore.textContent = State.personalBest.toLocaleString();
+        }
+
+        // Evaluate Golden Touch mission
+        if (State.goldenTracking) {
+            State.goldenTracking = false;
+            if (State.clickCount >= 5000) {
+                State.goldenMissionCompleted = true;
+                showToast('Golden Touch mission complete! Claim your reward.', 'success');
+            } else {
+                State.goldenMissionFailed = true;
+            }
+            updateGoldenEventUI();
         }
 
         DOM.modalTitle.textContent = "Time's Up!";
