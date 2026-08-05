@@ -100,7 +100,7 @@
                     </div>
                     <div class="slide-text">
                         <h2>Events, Boosts & Skins</h2>
-                        <p>Join limited-time events to unlock exclusive Purple Night themes. Activate Lightning Boost for massive multipliers up to 64x, and build your personal skin collection.</p>
+                        <p>Join limited-time events to unlock exclusive Purple Night and Golden Touch themes. Activate Lightning Boost for massive multipliers up to 64x, and build your personal skin collection.</p>
                     </div>
                 </div>
                 <div class="onboard-slide" data-slide="4">
@@ -657,7 +657,7 @@
             <section class="dash-section" id="section-event">
                 <div class="event-hero">
                     <div class="event-banner">
-                        <img src="Img/event-banner.png" alt="Event Background">
+                        <img src="img/event-banner.png" alt="Event Background">
                         <div class="event-banner-overlay">
                             <span class="event-tag">Limited Time</span>
                             <h2>Event Background</h2>
@@ -700,6 +700,53 @@
                         <span class="btn-text">Claim Reward</span>
                     </button>
                 </div>
+
+                <!-- Golden Touch Event -->
+                <div class="event-hero" style="margin-top: 24px;">
+                    <div class="event-banner">
+                        <img src="img/event-golden.png" alt="Golden Touch Event">
+                        <div class="event-banner-overlay">
+                            <span class="event-tag" style="background: #FF9500;">Limited Time</span>
+                            <h2>Golden Touch</h2>
+                            <p>Speed Challenge</p>
+                        </div>
+                    </div>
+                    <div class="event-countdown-card">
+                        <span class="event-countdown-label">Event Ends In</span>
+                        <span class="event-countdown-value" id="event-countdown-golden">--</span>
+                    </div>
+                </div>
+                
+                <div class="event-rules-card">
+                    <h3>Mission Rules</h3>
+                    <ul class="event-rules-list">
+                        <li>Play 60s Speed Mode</li>
+                        <li>Achieve at least 5,000 clicks in a single 60-second run</li>
+                        <li>Only raw clicks count toward the goal</li>
+                    </ul>
+                </div>
+                
+                <div class="event-progress-card">
+                    <h3>Mission Status</h3>
+                    <div class="event-status-row">
+                        <span class="event-status-label">Current Status</span>
+                        <span class="event-status-value" id="event-status-text-golden">Not Started</span>
+                    </div>
+                    <div class="event-reward-block">
+                        <div class="reward-icon" style="background: #FFF3E0; color: #FF9500;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <div class="reward-info">
+                            <span class="reward-name">Golden Touch Theme</span>
+                            <span class="reward-type">Premium Skin</span>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="btn-claim-reward-golden" disabled>
+                        <span class="btn-text">Claim Reward</span>
+                    </button>
+                </div>
             </section>
 
             <section class="dash-section" id="section-collection">
@@ -726,6 +773,15 @@
                         </div>
                         <button class="btn-skin-toggle" data-skin="dark_premium" disabled>Locked</button>
                     </div>
+
+                    <div class="skin-card locked" data-skin="golden_touch">
+                        <div class="skin-preview skin-preview-gold"></div>
+                        <div class="skin-info">
+                            <h3>Golden Touch</h3>
+                            <p>Premium gold theme</p>
+                        </div>
+                        <button class="btn-skin-toggle" data-skin="golden_touch" disabled>Locked</button>
+                    </div>
                 </div>
                 
                 <div class="collection-divider">
@@ -734,9 +790,16 @@
                 
                 <div class="skins-upcoming">
                     <div class="skin-card upcoming">
-                        <div class="skin-preview skin-preview-gold"></div>
+                        <div class="skin-preview skin-preview-merdeka"></div>
                         <div class="skin-info">
-                            <h3>Golden Touch</h3>
+                            <h3>Merdeka</h3>
+                            <p>Coming soon</p>
+                        </div>
+                    </div>
+                    <div class="skin-card upcoming">
+                        <div class="skin-preview skin-preview-summer"></div>
+                        <div class="skin-info">
+                            <h3>Summer</h3>
                             <p>Coming soon</p>
                         </div>
                     </div>
@@ -776,7 +839,7 @@
     </div>
 
     <!-- ========================================= -->
-    <!-- GAME ARENA OVERLAY                        -->
+    <!-- VIEW 5: GAME ARENA OVERLAY                -->
     <!-- ========================================= -->
     <div id="game-arena" class="game-arena">
         <div class="game-hud">
@@ -825,6 +888,38 @@
         <div class="game-zone" id="game-zone">
             <div class="game-zone-hint" id="game-zone-hint">Tap anywhere to click!</div>
             <div class="click-ripples" id="click-ripples"></div>
+        </div>
+    </div>
+
+    <!-- ========================================= -->
+    <!-- VIEW 6: MAINTENANCE PAGE (NEW v4.0)       -->
+    <!-- ========================================= -->
+    <div id="view-maintenance" class="view">
+        <div class="maintenance-content">
+            <div class="maintenance-icon">
+                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M32 4v8M32 52v8M4 32h8M52 32h8M12.2 12.2l5.7 5.7M46.1 46.1l5.7 5.7M12.2 51.8l5.7-5.7M46.1 17.9l5.7-5.7"/>
+                    <circle cx="32" cy="32" r="12"/>
+                </svg>
+            </div>
+            <h1 class="maintenance-title">System Maintenance</h1>
+            <p class="maintenance-message" id="maintenance-message">We are currently performing scheduled maintenance. Please check back later.</p>
+            
+            <div class="maintenance-countdown-block">
+                <span class="maintenance-countdown-label">Maintenance ends in</span>
+                <span class="maintenance-countdown-value" id="maintenance-countdown">--</span>
+            </div>
+            
+            <div class="maintenance-times">
+                <div class="maintenance-time-row">
+                    <span class="maintenance-time-label">Started</span>
+                    <span class="maintenance-time-value" id="maintenance-start">--</span>
+                </div>
+                <div class="maintenance-time-row">
+                    <span class="maintenance-time-label">Expected completion</span>
+                    <span class="maintenance-time-value" id="maintenance-end">--</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -918,7 +1013,7 @@
         <div class="modal-sheet modal-sheet-sm">
             <div class="modal-handle"></div>
             <div class="modal-header">
-                <img src="Img/event-banner.png" alt="Event" class="event-popup-img">
+                <img src="img/event-banner.png" alt="Event" class="event-popup-img">
                 <h2 class="modal-title">Limited Time Event</h2>
                 <p class="modal-subtitle">Event Background is now active. Complete the endurance challenge to unlock the exclusive Purple Night theme.</p>
             </div>
